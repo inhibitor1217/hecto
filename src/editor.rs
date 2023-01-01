@@ -36,6 +36,7 @@ impl<'a> Editor<'a> {
 
             if self.quit {
                 self.terminal.clear()?;
+                write!(self.stdout, "Goodbye! :)\r\n")?;
                 break;
             }
 
