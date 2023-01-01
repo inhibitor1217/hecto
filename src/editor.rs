@@ -1,9 +1,11 @@
 use std::io::{self, Stdout, Write};
 
-use crate::terminal::{Key, KeyCode, KeyModifiers, Terminal};
+use crate::terminal::{Key, KeyCode, KeyModifiers, Size, Terminal};
 
 type Error = io::Error;
 type Result<T> = std::result::Result<T, Error>;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Editor<'a> {
     stdout: Stdout,
@@ -47,11 +49,33 @@ impl<'a> Editor<'a> {
     }
 
     fn draw(&mut self) -> Result<()> {
-        for _ in 0..self.terminal.size().height - 1 {
+        let Size { width, height } = *self.terminal.size();
+        let welcome_message_row = height / 3;
+
+        for row in 0..height - 1 {
             self.terminal.clear_line()?;
-            write!(self.stdout, "~\r\n")?;
+
+            let line = if row == welcome_message_row {
+                Editor::welcome_message(width)
+            } else {
+                Editor::empty_line()
+            };
+            write!(self.stdout, "{}\n", line)?;
         }
         Ok(())
+    }
+
+    fn empty_line() -> String {
+        String::from("~\r")
+    }
+
+    fn welcome_message(width: u16) -> String {
+        let msg = format!("Hecto editor -- version {}", VERSION);
+        let width = width as usize;
+        let len = msg.len();
+        let padding = width.saturating_sub(len) / 2;
+        let pad = " ".repeat(padding.saturating_sub(1));
+        format!("~{}{}\r", pad, &msg[..len])
     }
 
     fn process_key(&mut self, key: Key) -> Result<()> {
