@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-use crate::row::Row;
+use crate::{row::Row, position::Position};
 
 #[derive(Default)]
 pub struct Document {
@@ -23,8 +23,10 @@ impl Document {
         self.rows.get(index)
     }
 
-    pub fn width(&self) -> usize {
-        self.rows.iter().map(Row::len).max().unwrap_or(0)
+    pub fn width_at(&self, position: &Position) -> usize {
+        self.row(position.y)
+            .map(|row| row.len())
+            .unwrap_or_default()
     }
 
     pub fn height(&self) -> usize {

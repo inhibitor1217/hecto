@@ -52,7 +52,6 @@ impl<'a> Editor<'a> {
     fn run_loop(&mut self) -> Result<()> {
         loop {
             self.terminal.hide_cursor()?;
-
             self.terminal.move_cursor_to(&Position::zero())?;
             self.draw()?;
             self.terminal
@@ -74,19 +73,20 @@ impl<'a> Editor<'a> {
 
     fn draw(&mut self) -> Result<()> {
         let Size { width, height } = *self.terminal.size();
-        let width = width as usize;
-        let height = height as usize;
-        let welcome_message_row = height / 3;
+        let screen_width = width as usize;
+        let screen_height = (height as usize).saturating_sub(1);
+        let Position { x: offx, y: offy } = self.offset;
+        let welcome_message_row = screen_height / 3;
 
-        for row_idx in 0..height - 1 {
-            let row_idx = row_idx + self.offset.y;
+        for row_idx in 0..screen_height {
+            let row_idx = row_idx + offy;
 
             self.terminal.clear_line()?;
 
             let line = if let Some(row) = self.document.row(row_idx) {
-                format!("{}\r", row.render(self.offset.x, self.offset.x + width))
+                format!("{}\r", row.render(offx, offx + screen_width))
             } else if self.document.is_empty() && row_idx == welcome_message_row {
-                Editor::welcome_message(width)
+                Editor::welcome_message(screen_width)
             } else {
                 Editor::empty_line()
             };
@@ -108,8 +108,56 @@ impl<'a> Editor<'a> {
     }
 
     fn process_key(&mut self, key: Key) -> Result<()> {
-        // TODO
+        match key {
+            // In most cases we will use ctrl+q for quitting,
+            // but apparently VSCode skips sending ctrl+q to the terminal.
+            (_, KeyCode::Char('q')) => self.quit = true,
+            (KeyModifiers::NONE, KeyCode::Left) => self.position.x = self.position.x.saturating_sub(1),
+            (KeyModifiers::NONE, KeyCode::Right) => self.position.x += 1,
+            (KeyModifiers::NONE, KeyCode::Up) => self.position.y = self.position.y.saturating_sub(1),
+            (KeyModifiers::NONE, KeyCode::Down) => self.position.y += 1,
+            _ => {}
+        }
+
+        self.sanitize_position();
+        self.scroll();
+
         Ok(())
+    }
+
+    fn sanitize_position(&mut self) {
+        let doc_height = self.document.height();
+        if self.position.y > doc_height {
+            self.position.y = doc_height;
+        }
+        let width = self.document.width_at(&self.position);
+        if self.position.x > width {
+            self.position.x = width;
+        }
+    }
+
+    fn scroll(&mut self) {
+        let Size { width, height } = *self.terminal.size();
+        let screen_width = width as usize;
+        let screen_height = (height as usize).saturating_sub(1);
+
+        let Position { x: posx, y: posy } = self.position;
+        let Position { x: mut offx, y: mut offy } = self.offset;
+
+        if posx < offx {
+            offx = posx;
+        }
+        if posy < offy {
+            offy = posy;
+        }
+        if posx >= offx + screen_width {
+            offx += 1;
+        }
+        if posy >= offy + screen_height {
+            offy += 1;
+        }
+
+        self.offset = Position::at(offx, offy);
     }
 
     fn die(&mut self, e: &Error) {
