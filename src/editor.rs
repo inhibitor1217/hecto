@@ -1,6 +1,7 @@
 use std::io::{self, Stdout, Write};
 
 use crate::{
+    document::Document,
     position::Position,
     terminal::{Key, KeyCode, KeyModifiers, Size, Terminal},
 };
@@ -13,7 +14,9 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Editor<'a> {
     stdout: Stdout,
     terminal: &'a mut Terminal,
-    cursor_position: Position,
+    document: Document,
+    position: Position,
+    offset: Position,
     quit: bool,
 }
 
@@ -22,7 +25,20 @@ impl<'a> Editor<'a> {
         Self {
             stdout: io::stdout(),
             terminal,
-            cursor_position: Position::zero(),
+            document: Document::new(),
+            position: Position::zero(),
+            offset: Position::zero(),
+            quit: false,
+        }
+    }
+
+    pub fn from_file(terminal: &'a mut Terminal, filename: &'a str) -> Self {
+        Self {
+            stdout: io::stdout(),
+            terminal,
+            position: Position::zero(),
+            document: Document::open(filename).unwrap_or_default(),
+            offset: Position::zero(),
             quit: false,
         }
     }
@@ -37,12 +53,15 @@ impl<'a> Editor<'a> {
         loop {
             self.terminal.hide_cursor()?;
 
+            self.terminal.move_cursor_to(&Position::zero())?;
             self.draw()?;
-            self.terminal.move_cursor_to(&self.cursor_position)?;
+            self.terminal
+                .move_cursor_to(&self.position.diff(&self.offset))?;
             self.terminal.show_cursor()?;
 
             if self.quit {
                 self.terminal.clear()?;
+                self.terminal.move_cursor_to(&Position::zero())?;
                 write!(self.stdout, "Goodbye! :)\r\n")?;
                 break;
             }
@@ -55,17 +74,23 @@ impl<'a> Editor<'a> {
 
     fn draw(&mut self) -> Result<()> {
         let Size { width, height } = *self.terminal.size();
+        let width = width as usize;
+        let height = height as usize;
         let welcome_message_row = height / 3;
 
-        for row in 0..height - 1 {
+        for row_idx in 0..height - 1 {
+            let row_idx = row_idx + self.offset.y;
+
             self.terminal.clear_line()?;
 
-            let line = if row == welcome_message_row {
+            let line = if let Some(row) = self.document.row(row_idx) {
+                format!("{}\r", row.render(self.offset.x, self.offset.x + width))
+            } else if self.document.is_empty() && row_idx == welcome_message_row {
                 Editor::welcome_message(width)
             } else {
                 Editor::empty_line()
             };
-            write!(self.stdout, "{}\n", line)?;
+            writeln!(self.stdout, "{line}")?;
         }
         Ok(())
     }
@@ -74,24 +99,17 @@ impl<'a> Editor<'a> {
         String::from("~\r")
     }
 
-    fn welcome_message(width: u16) -> String {
-        let msg = format!("Hecto editor -- version {}", VERSION);
-        let width = width as usize;
+    fn welcome_message(width: usize) -> String {
+        let msg = format!("Hecto editor -- version {VERSION}");
         let len = msg.len();
         let padding = width.saturating_sub(len) / 2;
         let pad = " ".repeat(padding.saturating_sub(1));
-        format!("~{}{}\r", pad, &msg[..len])
+        format!("~{pad}{}\r", &msg[..len])
     }
 
     fn process_key(&mut self, key: Key) -> Result<()> {
-        match key {
-            (KeyModifiers::CONTROL, KeyCode::Char('q')) => {
-                self.quit = true;
-                Ok(())
-            }
-            (_, KeyCode::Char(c)) => write!(self.stdout, "{:?} ({c}) \r\n", c as u8),
-            (_, code) => write!(self.stdout, "{code:?} \r\n"),
-        }
+        // TODO
+        Ok(())
     }
 
     fn die(&mut self, e: &Error) {

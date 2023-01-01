@@ -47,6 +47,7 @@ impl Terminal {
         execute!(self.stdout, Hide)
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     pub fn move_cursor_to(&mut self, position: &Position) -> Result<()> {
         execute!(self.stdout, MoveTo(position.x as u16, position.y as u16))
     }
