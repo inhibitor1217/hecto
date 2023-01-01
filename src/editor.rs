@@ -7,18 +7,22 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 
+use crate::terminal::Terminal;
+
 type Error = io::Error;
 type Result<T> = std::result::Result<T, Error>;
 
-pub struct Editor {
+pub struct Editor<'a> {
     stdout: Stdout,
+    terminal: &'a mut Terminal,
     quit: bool,
 }
 
-impl Editor {
-    pub fn new() -> Editor {
+impl<'a> Editor<'a> {
+    pub fn new(terminal: &'a mut Terminal) -> Self {
         Self {
             stdout: io::stdout(),
+            terminal,
             quit: false,
         }
     }
@@ -51,7 +55,7 @@ impl Editor {
     }
 
     fn draw(&mut self) -> Result<()> {
-        for _ in 0..24 {
+        for _ in 0..self.terminal.size().height {
             write!(self.stdout, "~\r\n")?;
         }
         Ok(())
