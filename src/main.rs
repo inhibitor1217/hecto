@@ -15,7 +15,7 @@ fn die(e: &editor::Error) {
 fn main() -> Result<(), MainError> {
     enable_raw_mode()?;
 
-    let editor = Editor::new();
+    let mut editor = Editor::new();
     if let Err(e) = editor.run() {
         die(&e);
     }
