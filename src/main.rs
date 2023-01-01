@@ -1,5 +1,6 @@
 #![warn(clippy::all, clippy::pedantic)]
 mod editor;
+mod position;
 mod terminal;
 
 use std::error::Error;

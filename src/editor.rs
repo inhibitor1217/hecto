@@ -1,6 +1,9 @@
 use std::io::{self, Stdout, Write};
 
-use crate::terminal::{Key, KeyCode, KeyModifiers, Size, Terminal};
+use crate::{
+    position::Position,
+    terminal::{Key, KeyCode, KeyModifiers, Size, Terminal},
+};
 
 type Error = io::Error;
 type Result<T> = std::result::Result<T, Error>;
@@ -10,6 +13,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Editor<'a> {
     stdout: Stdout,
     terminal: &'a mut Terminal,
+    cursor_position: Position,
     quit: bool,
 }
 
@@ -18,6 +22,7 @@ impl<'a> Editor<'a> {
         Self {
             stdout: io::stdout(),
             terminal,
+            cursor_position: Position::zero(),
             quit: false,
         }
     }
@@ -33,7 +38,7 @@ impl<'a> Editor<'a> {
             self.terminal.hide_cursor()?;
 
             self.draw()?;
-            self.terminal.move_cursor_to(0, 0)?;
+            self.terminal.move_cursor_to(&self.cursor_position)?;
             self.terminal.show_cursor()?;
 
             if self.quit {

@@ -7,6 +7,8 @@ use crossterm::{
     terminal::{size, Clear, ClearType},
 };
 
+use crate::position::Position;
+
 pub struct Size {
     pub width: u16,
     pub height: u16,
@@ -45,8 +47,8 @@ impl Terminal {
         execute!(self.stdout, Hide)
     }
 
-    pub fn move_cursor_to(&mut self, x: u16, y: u16) -> Result<()> {
-        execute!(self.stdout, MoveTo(x, y))
+    pub fn move_cursor_to(&mut self, position: &Position) -> Result<()> {
+        execute!(self.stdout, MoveTo(position.x as u16, position.y as u16))
     }
 
     pub fn read_key() -> Result<Key> {
