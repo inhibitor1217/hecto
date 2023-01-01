@@ -1,13 +1,14 @@
+#![warn(clippy::all, clippy::pedantic)]
 mod editor;
 
-use std::error::Error;
+use std::error;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use editor::{Editor, EditorError};
+use editor::Editor;
 
-type MainError = Box<dyn Error>;
+type MainError = Box<dyn error::Error>;
 
-fn die(e: EditorError) -> ! {
+fn die(e: &editor::Error) {
     panic!("{}", e);
 }
 
@@ -15,7 +16,9 @@ fn main() -> Result<(), MainError> {
     enable_raw_mode()?;
 
     let editor = Editor::new();
-    editor.run().map_err(die)?;
+    if let Err(e) = editor.run() {
+        die(&e);
+    }
 
     disable_raw_mode()?;
 
