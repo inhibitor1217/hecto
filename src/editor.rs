@@ -1,6 +1,10 @@
 use std::io::{self, Stdout, Write};
 
-use crossterm::event::{read, Event, KeyCode, KeyModifiers};
+use crossterm::{
+    event::{read, Event, KeyCode, KeyModifiers},
+    execute,
+    terminal::{Clear, ClearType},
+};
 
 pub type Error = io::Error;
 pub type Result<T> = std::result::Result<T, Error>;
@@ -20,15 +24,21 @@ impl Editor {
 
     pub fn run(&mut self) -> Result<()> {
         loop {
-            let key = Self::read_key()?;
-            self.process_key(key)?;
+            self.refresh_screen()?;
 
             if self.quit {
                 break;
             }
+
+            let key = Self::read_key()?;
+            self.process_key(key)?;
         }
 
         Ok(())
+    }
+
+    fn refresh_screen(&mut self) -> Result<()> {
+        execute!(self.stdout, Clear(ClearType::All))
     }
 
     fn read_key() -> Result<(KeyModifiers, KeyCode)> {
