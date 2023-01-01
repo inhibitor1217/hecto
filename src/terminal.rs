@@ -1,7 +1,7 @@
 use std::io::{self, Stdout};
 
 use crossterm::{
-    cursor::MoveTo,
+    cursor::{Hide, MoveTo, Show},
     event::{read, Event, KeyCode as CrossTermKeyCode, KeyModifiers as CrossTermKeyModifiers},
     execute,
     terminal::{size, Clear, ClearType},
@@ -35,6 +35,14 @@ impl Terminal {
 
     pub fn size(&self) -> &Size {
         &self.size
+    }
+
+    pub fn show_cursor(&mut self) -> Result<()> {
+        execute!(self.stdout, Show)
+    }
+
+    pub fn hide_cursor(&mut self) -> Result<()> {
+        execute!(self.stdout, Hide)
     }
 
     pub fn move_cursor_to(&mut self, x: u16, y: u16) -> Result<()> {
