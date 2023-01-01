@@ -7,8 +7,8 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 
-pub type Error = io::Error;
-pub type Result<T> = std::result::Result<T, Error>;
+type Error = io::Error;
+type Result<T> = std::result::Result<T, Error>;
 
 pub struct Editor {
     stdout: Stdout,
@@ -23,7 +23,13 @@ impl Editor {
         }
     }
 
-    pub fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self) {
+        if let Err(e) = self.run_loop() {
+            self.die(&e);
+        }
+    }
+
+    fn run_loop(&mut self) -> Result<()> {
         loop {
             self.refresh_screen()?;
 
@@ -34,7 +40,6 @@ impl Editor {
             let key = Self::read_key()?;
             self.process_key(key)?;
         }
-
         Ok(())
     }
 
@@ -59,5 +64,10 @@ impl Editor {
             (_, KeyCode::Char(c)) => write!(self.stdout, "{:?} ({c}) \r\n", c as u8),
             (_, code) => write!(self.stdout, "{code:?} \r\n"),
         }
+    }
+
+    fn die(&mut self, e: &Error) {
+        self.refresh_screen().unwrap(); // We cannot handle error here, already dying
+        panic!("{}", e);
     }
 }
