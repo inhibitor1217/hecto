@@ -60,4 +60,8 @@ impl Terminal {
     pub fn clear(&mut self) -> Result<()> {
         execute!(self.stdout, Clear(ClearType::All))
     }
+
+    pub fn clear_line(&mut self) -> Result<()> {
+        execute!(self.stdout, Clear(ClearType::CurrentLine))
+    }
 }

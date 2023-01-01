@@ -29,13 +29,13 @@ impl<'a> Editor<'a> {
     fn run_loop(&mut self) -> Result<()> {
         loop {
             self.terminal.hide_cursor()?;
-            self.terminal.clear()?;
 
             self.draw()?;
             self.terminal.move_cursor_to(0, 0)?;
             self.terminal.show_cursor()?;
 
             if self.quit {
+                self.terminal.clear()?;
                 break;
             }
 
@@ -47,6 +47,7 @@ impl<'a> Editor<'a> {
 
     fn draw(&mut self) -> Result<()> {
         for _ in 0..self.terminal.size().height - 1 {
+            self.terminal.clear_line()?;
             write!(self.stdout, "~\r\n")?;
         }
         Ok(())
