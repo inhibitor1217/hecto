@@ -1,8 +1,6 @@
 use std::io::{self, Stdout, Write};
 
-use crossterm::event::{read, Event, KeyCode, KeyModifiers};
-
-use crate::terminal::Terminal;
+use crate::terminal::{Key, KeyCode, KeyModifiers, Terminal};
 
 type Error = io::Error;
 type Result<T> = std::result::Result<T, Error>;
@@ -39,7 +37,7 @@ impl<'a> Editor<'a> {
             self.draw()?;
             self.terminal.move_cursor_to(0, 0)?;
 
-            let key = Self::read_key()?;
+            let key = Terminal::read_key()?;
             self.process_key(key)?;
         }
         Ok(())
@@ -52,15 +50,7 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    fn read_key() -> Result<(KeyModifiers, KeyCode)> {
-        loop {
-            if let Event::Key(event) = read()? {
-                return Ok((event.modifiers, event.code));
-            }
-        }
-    }
-
-    fn process_key(&mut self, key: (KeyModifiers, KeyCode)) -> Result<()> {
+    fn process_key(&mut self, key: Key) -> Result<()> {
         match key {
             (KeyModifiers::CONTROL, KeyCode::Char('q')) => {
                 self.quit = true;
