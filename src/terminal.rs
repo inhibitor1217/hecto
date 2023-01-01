@@ -1,6 +1,7 @@
 use std::io::{self, Stdout};
 
 use crossterm::{
+    cursor::MoveTo,
     execute,
     terminal::{size, Clear, ClearType},
 };
@@ -29,6 +30,10 @@ impl Terminal {
 
     pub fn size(&self) -> &Size {
         &self.size
+    }
+
+    pub fn move_cursor_to(&mut self, x: u16, y: u16) -> Result<()> {
+        execute!(self.stdout, MoveTo(x, y))
     }
 
     pub fn clear(&mut self) -> Result<()> {

@@ -1,10 +1,6 @@
 use std::io::{self, Stdout, Write};
 
-use crossterm::{
-    cursor::MoveTo,
-    event::{read, Event, KeyCode, KeyModifiers},
-    execute,
-};
+use crossterm::event::{read, Event, KeyCode, KeyModifiers};
 
 use crate::terminal::Terminal;
 
@@ -41,7 +37,7 @@ impl<'a> Editor<'a> {
             }
 
             self.draw()?;
-            self.position_cursor_at_default()?;
+            self.terminal.move_cursor_to(0, 0)?;
 
             let key = Self::read_key()?;
             self.process_key(key)?;
@@ -54,10 +50,6 @@ impl<'a> Editor<'a> {
             write!(self.stdout, "~\r\n")?;
         }
         Ok(())
-    }
-
-    fn position_cursor_at_default(&mut self) -> Result<()> {
-        execute!(self.stdout, MoveTo(0, 0))
     }
 
     fn read_key() -> Result<(KeyModifiers, KeyCode)> {
