@@ -4,7 +4,6 @@ use crossterm::{
     cursor::MoveTo,
     event::{read, Event, KeyCode, KeyModifiers},
     execute,
-    terminal::{Clear, ClearType},
 };
 
 use crate::terminal::Terminal;
@@ -35,7 +34,7 @@ impl<'a> Editor<'a> {
 
     fn run_loop(&mut self) -> Result<()> {
         loop {
-            self.refresh_screen()?;
+            self.terminal.clear()?;
 
             if self.quit {
                 break;
@@ -48,10 +47,6 @@ impl<'a> Editor<'a> {
             self.process_key(key)?;
         }
         Ok(())
-    }
-
-    fn refresh_screen(&mut self) -> Result<()> {
-        execute!(self.stdout, Clear(ClearType::All))
     }
 
     fn draw(&mut self) -> Result<()> {
@@ -85,7 +80,7 @@ impl<'a> Editor<'a> {
     }
 
     fn die(&mut self, e: &Error) {
-        self.refresh_screen().unwrap(); // We cannot handle error here, already dying
+        self.terminal.clear().unwrap(); // We cannot handle error here, already dying
         panic!("{}", e);
     }
 }
