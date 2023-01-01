@@ -44,7 +44,7 @@ impl<'a> Editor<'a> {
     }
 
     fn draw(&mut self) -> Result<()> {
-        for _ in 0..self.terminal.size().height {
+        for _ in 0..self.terminal.size().height - 1 {
             write!(self.stdout, "~\r\n")?;
         }
         Ok(())
