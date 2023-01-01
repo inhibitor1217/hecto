@@ -37,6 +37,9 @@ impl Editor {
                 break;
             }
 
+            self.draw()?;
+            self.position_cursor_at_default()?;
+
             let key = Self::read_key()?;
             self.process_key(key)?;
         }
@@ -44,7 +47,18 @@ impl Editor {
     }
 
     fn refresh_screen(&mut self) -> Result<()> {
-        execute!(self.stdout, Clear(ClearType::All), MoveTo(0, 0))
+        execute!(self.stdout, Clear(ClearType::All))
+    }
+
+    fn draw(&mut self) -> Result<()> {
+        for _ in 0..24 {
+            write!(self.stdout, "~\r\n")?;
+        }
+        Ok(())
+    }
+
+    fn position_cursor_at_default(&mut self) -> Result<()> {
+        execute!(self.stdout, MoveTo(0, 0))
     }
 
     fn read_key() -> Result<(KeyModifiers, KeyCode)> {
