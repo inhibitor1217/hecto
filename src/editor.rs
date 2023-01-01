@@ -1,6 +1,7 @@
 use std::io::{self, Stdout, Write};
 
 use crossterm::{
+    cursor::MoveTo,
     event::{read, Event, KeyCode, KeyModifiers},
     execute,
     terminal::{Clear, ClearType},
@@ -38,7 +39,7 @@ impl Editor {
     }
 
     fn refresh_screen(&mut self) -> Result<()> {
-        execute!(self.stdout, Clear(ClearType::All))
+        execute!(self.stdout, Clear(ClearType::All), MoveTo(0, 0))
     }
 
     fn read_key() -> Result<(KeyModifiers, KeyCode)> {
