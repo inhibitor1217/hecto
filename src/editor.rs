@@ -139,6 +139,18 @@ impl<'a> Editor<'a> {
             (KeyModifiers::NONE, KeyCode::Down) => {
                 position_y += 1;
             },
+            (KeyModifiers::NONE, KeyCode::Home) => {
+                position_x = 0;
+            },
+            (KeyModifiers::NONE, KeyCode::End) => {
+                position_x = self.document.width_at(&self.position);
+            },
+            (KeyModifiers::NONE, KeyCode::PageUp) => {
+                position_y = position_y.saturating_sub(self.window_height());
+            },
+            (KeyModifiers::NONE, KeyCode::PageDown) => {
+                position_y += self.window_height();
+            },
             _ => {}
         }
 
