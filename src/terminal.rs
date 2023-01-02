@@ -4,7 +4,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{read, Event, KeyCode as CrossTermKeyCode, KeyModifiers as CrossTermKeyModifiers},
     execute,
-    terminal::{size, Clear, ClearType},
+    terminal::{size, Clear, ClearType}, style::{SetBackgroundColor, self, SetForegroundColor},
 };
 
 use crate::position::Position;
@@ -25,6 +25,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type KeyModifiers = CrossTermKeyModifiers;
 pub type KeyCode = CrossTermKeyCode;
 pub type Key = (KeyModifiers, KeyCode);
+
+pub type Color = style::Color;
 
 impl Terminal {
     pub fn new() -> Result<Self> {
@@ -68,7 +70,16 @@ impl Terminal {
         execute!(self.stdout, Clear(ClearType::CurrentLine))
     }
 
-    pub fn draw_line(&mut self, line: &str) -> Result<()> {
-        writeln!(self.stdout, "{line}")
+    pub fn draw_line(&mut self, line: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
+        if let Some(color) = color {
+            execute!(self.stdout, SetForegroundColor(color))?;
+        }
+        if let Some(bg_color) = bg_color {
+            execute!(self.stdout, SetBackgroundColor(bg_color))?;
+        }
+        writeln!(self.stdout, "{line}")?;
+        execute!(self.stdout, SetForegroundColor(Color::Reset))?;
+        execute!(self.stdout, SetBackgroundColor(Color::Reset))?;
+        Ok(())
     }
 }

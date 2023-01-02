@@ -3,7 +3,7 @@ use std::io::{self, Stdout, Write};
 use crate::{
     document::Document,
     position::Position,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal},
+    terminal::{Key, KeyCode, KeyModifiers, Terminal, Color},
 };
 
 type Error = io::Error;
@@ -53,7 +53,9 @@ impl<'a> Editor<'a> {
         loop {
             self.terminal.hide_cursor()?;
             self.terminal.move_cursor_to(&Position::zero())?;
-            self.draw()?;
+            self.draw_window()?;
+            self.draw_status_bar()?;
+            self.draw_message_bar()?;
             self.terminal
                 .move_cursor_to(&self.position.diff(&self.offset))?;
             self.terminal.show_cursor()?;
@@ -73,7 +75,7 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    fn draw(&mut self) -> Result<()> {
+    fn draw_window(&mut self) -> Result<()> {
         let window_width = self.window_width();
         let window_height = self.window_height();
         let Position { x: offset_x, y: offset_y } = self.offset;
@@ -92,8 +94,27 @@ impl<'a> Editor<'a> {
                 Editor::empty_line()
             };
             
-            self.terminal.draw_line(&line)?;
+            self.terminal.draw_line(&line, None, None)?;
         }
+        Ok(())
+    }
+
+    fn draw_status_bar(&mut self) -> Result<()> {
+        let status_bar_pos = Position::at(0, self.window_height());
+        self.terminal.move_cursor_to(&status_bar_pos)?;
+
+        self.terminal.clear_line()?;
+        self.terminal.draw_line(" ".repeat(self.window_width()).as_str(), None, Some(Color::White))?;
+
+        Ok(())
+    }
+
+    fn draw_message_bar(&mut self) -> Result<()> {
+        let message_bar_pos = Position::at(0, self.window_height() + 1);
+        self.terminal.move_cursor_to(&message_bar_pos)?;
+
+        self.terminal.clear_line()?;
+
         Ok(())
     }
 
@@ -133,9 +154,7 @@ impl<'a> Editor<'a> {
                 }
             },
             (KeyModifiers::NONE, KeyCode::Up) => {
-                if position_y > 0 {
-                    position_y -= 1;
-                }
+                position_y = position_y.saturating_sub(1);
             },
             (KeyModifiers::NONE, KeyCode::Down) => {
                 position_y += 1;
