@@ -4,17 +4,19 @@ use crate::{row::Row, position::Position};
 
 #[derive(Default)]
 pub struct Document {
+    pub filename: Option<String>,
     rows: Vec<Row>,
 }
 
 impl Document {
     pub fn new() -> Self {
-        Self { rows: vec![] }
+        Self { filename: None, rows: vec![] }
     }
 
     pub fn open(filename: &str) -> Result<Self, io::Error> {
         let content = fs::read_to_string(filename)?;
         Ok(Self {
+            filename: Some(filename.to_string()),
             rows: content.lines().map(Row::from).collect(),
         })
     }

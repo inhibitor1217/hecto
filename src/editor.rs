@@ -11,6 +11,9 @@ type Result<T> = std::result::Result<T, Error>;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
+const STATUS_BG_COLOR: Color = Color::Rgb { r: 191, g: 191, b: 191 };
+
 pub struct Editor<'a> {
     stdout: Stdout,
     terminal: &'a mut Terminal,
@@ -103,8 +106,19 @@ impl<'a> Editor<'a> {
         let status_bar_pos = Position::at(0, self.window_height());
         self.terminal.move_cursor_to(&status_bar_pos)?;
 
+        let mut filename = self.document.filename.clone().unwrap_or(String::from("[New File]"));
+        filename.truncate(20);
+        let file_length = self.document.height();
+        let file_status = format!("{filename} - {file_length} lines");
+
+        let pos_status = format!("{}/{}", self.position.y + 1, file_length);
+        
+        // Align file_status to left, pos_status to right
+        let pad = " ".repeat(self.window_width().saturating_sub(file_status.len() + pos_status.len()));
+        let status_line = format!("{file_status}{pad}{pos_status}");
+
         self.terminal.clear_line()?;
-        self.terminal.draw_line(" ".repeat(self.window_width()).as_str(), None, Some(Color::White))?;
+        self.terminal.draw_line(status_line.as_str(), Some(STATUS_FG_COLOR), Some(STATUS_BG_COLOR))?;
 
         Ok(())
     }
