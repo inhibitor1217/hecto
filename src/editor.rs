@@ -1,4 +1,4 @@
-use std::io::{self, Stdout, Write};
+use std::{io::{self, Stdout, Write}, time::Instant};
 
 use crate::{
     document::Document,
@@ -14,12 +14,31 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
 const STATUS_BG_COLOR: Color = Color::Rgb { r: 191, g: 191, b: 191 };
 
+struct StatusMessage {
+    text: String,
+    time: Instant,
+}
+
+impl StatusMessage {
+    fn new(text: String) -> Self {
+        Self {
+            text,
+            time: Instant::now(),
+        }
+    }
+
+    fn is_recent(&self) -> bool {
+        self.time.elapsed().as_secs() < 5
+    }
+}
+
 pub struct Editor<'a> {
     stdout: Stdout,
     terminal: &'a mut Terminal,
     document: Document,
     position: Position,
     offset: Position,
+    status_message: StatusMessage,
     quit: bool,
 }
 
@@ -31,17 +50,26 @@ impl<'a> Editor<'a> {
             document: Document::new(),
             position: Position::zero(),
             offset: Position::zero(),
+            status_message: StatusMessage::new(String::from("ctrl-q - quit")),
             quit: false,
         }
     }
 
     pub fn from_file(terminal: &'a mut Terminal, filename: &'a str) -> Self {
+        let mut status_message = StatusMessage::new(String::from("ctrl-q - quit"));
+        let document = Document::open(filename)
+            .unwrap_or_else(|_| {
+                status_message = StatusMessage::new(format!("Error opening file: {filename}"));
+                Document::new()
+            });
+
         Self {
             stdout: io::stdout(),
             terminal,
             position: Position::zero(),
-            document: Document::open(filename).unwrap_or_default(),
+            document,
             offset: Position::zero(),
+            status_message,
             quit: false,
         }
     }
@@ -128,6 +156,9 @@ impl<'a> Editor<'a> {
         self.terminal.move_cursor_to(&message_bar_pos)?;
 
         self.terminal.clear_line()?;
+        if self.status_message.is_recent() {
+            self.terminal.draw_line(self.status_message.text.as_str(), None, None)?;
+        }
 
         Ok(())
     }

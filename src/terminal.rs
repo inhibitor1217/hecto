@@ -17,6 +17,7 @@ pub struct Size {
 pub struct Terminal {
     stdout: Stdout,
     size: Size,
+    cursor_position: Position,
 }
 
 pub type Error = io::Error;
@@ -34,6 +35,7 @@ impl Terminal {
         Ok(Self {
             stdout: io::stdout(),
             size: Size { width, height },
+            cursor_position: Position::zero(),
         })
     }
 
@@ -51,6 +53,7 @@ impl Terminal {
 
     #[allow(clippy::cast_possible_truncation)]
     pub fn move_cursor_to(&mut self, position: &Position) -> Result<()> {
+        self.cursor_position = Position::at(position.x, position.y);
         execute!(self.stdout, MoveTo(position.x as u16, position.y as u16))
     }
 
@@ -77,7 +80,11 @@ impl Terminal {
         if let Some(bg_color) = bg_color {
             execute!(self.stdout, SetBackgroundColor(bg_color))?;
         }
-        writeln!(self.stdout, "{line}")?;
+
+        let is_last_line = self.cursor_position.y == self.size.height as usize - 1;
+        let newline = if is_last_line { "" } else { "\n" };
+
+        write!(self.stdout, "{line}{newline}")?;
         execute!(self.stdout, SetForegroundColor(Color::Reset))?;
         execute!(self.stdout, SetBackgroundColor(Color::Reset))?;
         Ok(())
