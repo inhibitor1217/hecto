@@ -109,16 +109,40 @@ impl<'a> Editor<'a> {
     }
 
     fn process_key(&mut self, key: Key) {
+        let Position { x: mut position_x, y: mut position_y } = self.position;
+
         match key {
             // In most cases we will use ctrl+q for quitting,
             // but apparently VSCode skips sending ctrl+q to the terminal.
             (_, KeyCode::Char('q')) => self.quit = true,
-            (KeyModifiers::NONE, KeyCode::Left) => self.position.x = self.position.x.saturating_sub(1),
-            (KeyModifiers::NONE, KeyCode::Right) => self.position.x += 1,
-            (KeyModifiers::NONE, KeyCode::Up) => self.position.y = self.position.y.saturating_sub(1),
-            (KeyModifiers::NONE, KeyCode::Down) => self.position.y += 1,
+            (KeyModifiers::NONE, KeyCode::Left) => {
+                if position_x > 0 {
+                    position_x -= 1;
+                } else if position_y > 0 {
+                    position_y -= 1;
+                    position_x = self.document.width_at(&Position::at(0, position_y));
+                }
+            },
+            (KeyModifiers::NONE, KeyCode::Right) => {
+                if position_x < self.document.width_at(&self.position) {
+                    position_x += 1;
+                } else if position_y < self.document.height().saturating_sub(1){
+                    position_y += 1;
+                    position_x = 0;
+                }
+            },
+            (KeyModifiers::NONE, KeyCode::Up) => {
+                if position_y > 0 {
+                    position_y -= 1;
+                }
+            },
+            (KeyModifiers::NONE, KeyCode::Down) => {
+                position_y += 1;
+            },
             _ => {}
         }
+
+        self.position = Position::at(position_x, position_y);
     }
 
     fn sanitize_position(&mut self) {
@@ -126,7 +150,7 @@ impl<'a> Editor<'a> {
         let Position { x: mut position_x, y: mut position_y } = self.position;
 
         if position_y >= doc_height {
-            position_y = doc_height - 1;
+            position_y = doc_height.saturating_sub(1);
         }
 
         let width = self.document.width_at(&self.position);
