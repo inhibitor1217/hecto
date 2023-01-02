@@ -1,4 +1,4 @@
-use std::io::{self, Stdout};
+use std::io::{self, Stdout, Write};
 
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -66,5 +66,9 @@ impl Terminal {
 
     pub fn clear_line(&mut self) -> Result<()> {
         execute!(self.stdout, Clear(ClearType::CurrentLine))
+    }
+
+    pub fn draw_line(&mut self, line: &str) -> Result<()> {
+        writeln!(self.stdout, "{line}")
     }
 }

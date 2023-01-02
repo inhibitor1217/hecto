@@ -91,7 +91,8 @@ impl<'a> Editor<'a> {
             } else {
                 Editor::empty_line()
             };
-            writeln!(self.stdout, "{line}")?;
+            
+            self.terminal.draw_line(&line)?;
         }
         Ok(())
     }
@@ -201,7 +202,7 @@ impl<'a> Editor<'a> {
     }
 
     fn window_height(&self) -> usize {
-        self.terminal.size().height as usize - 1 // Last line is for status bar
+        self.terminal.size().height as usize - 2 // Last two lines is for status bar
     }
 
     fn die(&mut self, e: &Error) {
