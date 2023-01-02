@@ -25,7 +25,7 @@ impl Document {
 
     pub fn width_at(&self, position: &Position) -> usize {
         self.row(position.y)
-            .map(|row| row.len())
+            .map(Row::len)
             .unwrap_or_default()
     }
 

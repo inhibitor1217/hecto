@@ -3,7 +3,7 @@ use std::io::{self, Stdout, Write};
 use crate::{
     document::Document,
     position::Position,
-    terminal::{Key, KeyCode, KeyModifiers, Size, Terminal},
+    terminal::{Key, KeyCode, KeyModifiers, Terminal},
 };
 
 type Error = io::Error;
@@ -66,27 +66,28 @@ impl<'a> Editor<'a> {
             }
 
             let key = Terminal::read_key()?;
-            self.process_key(key)?;
+            self.process_key(key);
+            self.sanitize_position();
+            self.scroll();
         }
         Ok(())
     }
 
     fn draw(&mut self) -> Result<()> {
-        let Size { width, height } = *self.terminal.size();
-        let screen_width = width as usize;
-        let screen_height = (height as usize).saturating_sub(1);
-        let Position { x: offx, y: offy } = self.offset;
-        let welcome_message_row = screen_height / 3;
+        let window_width = self.window_width();
+        let window_height = self.window_height();
+        let Position { x: offset_x, y: offset_y } = self.offset;
+        let welcome_message_row = window_height / 3;
 
-        for row_idx in 0..screen_height {
-            let row_idx = row_idx + offy;
+        for row_idx in 0..window_height {
+            let row_idx = row_idx + offset_y;
 
             self.terminal.clear_line()?;
 
             let line = if let Some(row) = self.document.row(row_idx) {
-                format!("{}\r", row.render(offx, offx + screen_width))
+                format!("{}\r", row.render(offset_x, offset_x + window_width))
             } else if self.document.is_empty() && row_idx == welcome_message_row {
-                Editor::welcome_message(screen_width)
+                Editor::welcome_message(window_width)
             } else {
                 Editor::empty_line()
             };
@@ -107,7 +108,7 @@ impl<'a> Editor<'a> {
         format!("~{pad}{}\r", &msg[..len])
     }
 
-    fn process_key(&mut self, key: Key) -> Result<()> {
+    fn process_key(&mut self, key: Key) {
         match key {
             // In most cases we will use ctrl+q for quitting,
             // but apparently VSCode skips sending ctrl+q to the terminal.
@@ -118,46 +119,53 @@ impl<'a> Editor<'a> {
             (KeyModifiers::NONE, KeyCode::Down) => self.position.y += 1,
             _ => {}
         }
-
-        self.sanitize_position();
-        self.scroll();
-
-        Ok(())
     }
 
     fn sanitize_position(&mut self) {
         let doc_height = self.document.height();
-        if self.position.y > doc_height {
-            self.position.y = doc_height;
+        let Position { x: mut position_x, y: mut position_y } = self.position;
+
+        if position_y >= doc_height {
+            position_y = doc_height - 1;
         }
+
         let width = self.document.width_at(&self.position);
-        if self.position.x > width {
-            self.position.x = width;
+        if position_x > width {
+            position_x = width;
         }
+
+        self.position = Position::at(position_x, position_y);
     }
 
     fn scroll(&mut self) {
-        let Size { width, height } = *self.terminal.size();
-        let screen_width = width as usize;
-        let screen_height = (height as usize).saturating_sub(1);
+        let window_width = self.window_width();
+        let window_height = self.window_height();
 
-        let Position { x: posx, y: posy } = self.position;
-        let Position { x: mut offx, y: mut offy } = self.offset;
+        let Position { x: position_x, y: position_y } = self.position;
+        let Position { x: mut offset_x, y: mut offset_y } = self.offset;
 
-        if posx < offx {
-            offx = posx;
+        if position_x < offset_x {
+            offset_x = position_x;
         }
-        if posy < offy {
-            offy = posy;
+        if position_y < offset_y {
+            offset_y = position_y;
         }
-        if posx >= offx + screen_width {
-            offx += 1;
+        if position_x >= offset_x + window_width {
+            offset_x = position_x - window_width + 1;
         }
-        if posy >= offy + screen_height {
-            offy += 1;
+        if position_y >= offset_y + window_height {
+            offset_y = position_y - window_height + 1;
         }
 
-        self.offset = Position::at(offx, offy);
+        self.offset = Position::at(offset_x, offset_y);
+    }
+
+    fn window_width(&self) -> usize {
+        self.terminal.size().width as usize
+    }
+
+    fn window_height(&self) -> usize {
+        self.terminal.size().height as usize - 1 // Last line is for status bar
     }
 
     fn die(&mut self, e: &Error) {
