@@ -16,6 +16,12 @@ impl From<&str> for Row {
     }
 }
 
+impl ToString for Row {
+    fn to_string(&self) -> String {
+        self.string.clone()
+    }
+}
+
 impl Row {
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = max(start, min(end, self.len()));

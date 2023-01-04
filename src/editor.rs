@@ -50,13 +50,13 @@ impl<'a> Editor<'a> {
             document: Document::new(),
             position: Position::zero(),
             offset: Position::zero(),
-            status_message: StatusMessage::new(String::from("ctrl-q - quit")),
+            status_message: StatusMessage::new(String::from("help) ctrl-s: save | ctrl-q: quit")),
             quit: false,
         }
     }
 
     pub fn from_file(terminal: &'a mut Terminal, filename: &'a str) -> Self {
-        let mut status_message = StatusMessage::new(String::from("ctrl-q - quit"));
+        let mut status_message = StatusMessage::new(String::from("help) ctrl-s: save | ctrl-q: quit"));
         let document = Document::open(filename)
             .unwrap_or_else(|_| {
                 status_message = StatusMessage::new(format!("Error opening file: {filename}"));
@@ -219,6 +219,7 @@ impl<'a> Editor<'a> {
             (_, KeyCode::Backspace) => {}, // TODO
             (_, KeyCode::Delete) => {}, // TODO
             (_, KeyCode::Enter) => {}, // TODO
+            (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 let Position { x, y } = self.position;
                 if let Some(row) = self.document.row_mut(y) {
@@ -277,6 +278,14 @@ impl<'a> Editor<'a> {
 
     fn window_height(&self) -> usize {
         self.terminal.size().height as usize - 2 // Last two lines is for status bar
+    }
+
+    fn save_document(&mut self) {
+        if let Err(e) = self.document.save() {
+            self.status_message = StatusMessage::new(format!("Unable to save file: {e}"));
+        } else {
+            self.status_message = StatusMessage::new(String::from("File saved"));
+        }
     }
 
     fn die(&mut self, e: &Error) {

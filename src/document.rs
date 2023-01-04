@@ -8,6 +8,16 @@ pub struct Document {
     rows: Vec<Row>,
 }
 
+impl ToString for Document {
+    fn to_string(&self) -> String {
+        self.rows
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
 impl Document {
     pub fn new() -> Self {
         Self { filename: None, rows: vec![] }
@@ -19,6 +29,16 @@ impl Document {
             filename: Some(filename.to_string()),
             rows: content.lines().map(Row::from).collect(),
         })
+    }
+
+    pub fn save(&self) -> Result<(), io::Error> {
+        if let Some(filename) = &self.filename {
+            fs::write(filename, self.to_string())?;
+        } else {
+            // TODO return error and prompt the user to input a filename
+        }
+
+        Ok(())
     }
 
     pub fn row(&self, index: usize) -> Option<&Row> {
