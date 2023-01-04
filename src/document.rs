@@ -25,6 +25,10 @@ impl Document {
         self.rows.get(index)
     }
 
+    pub fn row_mut(&mut self, index: usize) -> Option<&mut Row> {
+        self.rows.get_mut(index)
+    }
+
     pub fn width_at(&self, position: &Position) -> usize {
         self.row(position.y)
             .map(Row::len)

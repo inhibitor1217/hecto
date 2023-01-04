@@ -216,7 +216,14 @@ impl<'a> Editor<'a> {
             (KeyModifiers::NONE, KeyCode::PageDown) => {
                 position_y += self.window_height();
             },
-            _ => {}
+            (_, KeyCode::Char(c)) => {
+                let Position { x, y } = self.position;
+                if let Some(row) = self.document.row_mut(y) {
+                    row.insert_at(x, c);
+                    position_x += 1;
+                }
+            }
+            _ => {},
         }
 
         self.position = Position::at(position_x, position_y);

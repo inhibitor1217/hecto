@@ -26,6 +26,11 @@ impl Row {
             .collect()
     }
 
+    pub fn insert_at(&mut self, at: usize, c: char) {
+        self.string.insert(at, c);
+        self.len += 1;
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
