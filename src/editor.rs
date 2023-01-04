@@ -182,7 +182,7 @@ impl<'a> Editor<'a> {
             // In most cases we will use ctrl+q for quitting,
             // but apparently VSCode skips sending ctrl+q to the terminal.
             (_, KeyCode::Char('q')) => self.quit = true,
-            (KeyModifiers::NONE, KeyCode::Left) => {
+            (_, KeyCode::Left) => {
                 if position_x > 0 {
                     position_x -= 1;
                 } else if position_y > 0 {
@@ -190,7 +190,7 @@ impl<'a> Editor<'a> {
                     position_x = self.document.width_at(&Position::at(0, position_y));
                 }
             },
-            (KeyModifiers::NONE, KeyCode::Right) => {
+            (_, KeyCode::Right) => {
                 if position_x < self.document.width_at(&self.position) {
                     position_x += 1;
                 } else if position_y < self.document.height().saturating_sub(1){
@@ -198,25 +198,28 @@ impl<'a> Editor<'a> {
                     position_x = 0;
                 }
             },
-            (KeyModifiers::NONE, KeyCode::Up) => {
+            (_, KeyCode::Up) => {
                 position_y = position_y.saturating_sub(1);
             },
-            (KeyModifiers::NONE, KeyCode::Down) => {
+            (_, KeyCode::Down) => {
                 position_y += 1;
             },
-            (KeyModifiers::NONE, KeyCode::Home) => {
+            (_, KeyCode::Home) => {
                 position_x = 0;
             },
-            (KeyModifiers::NONE, KeyCode::End) => {
+            (_, KeyCode::End) => {
                 position_x = self.document.width_at(&self.position);
             },
-            (KeyModifiers::NONE, KeyCode::PageUp) => {
+            (_, KeyCode::PageUp) => {
                 position_y = position_y.saturating_sub(self.window_height());
             },
-            (KeyModifiers::NONE, KeyCode::PageDown) => {
+            (_, KeyCode::PageDown) => {
                 position_y += self.window_height();
             },
-            (_, KeyCode::Char(c)) => {
+            (_, KeyCode::Backspace) => {}, // TODO
+            (_, KeyCode::Delete) => {}, // TODO
+            (_, KeyCode::Enter) => {}, // TODO
+            (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 let Position { x, y } = self.position;
                 if let Some(row) = self.document.row_mut(y) {
                     row.insert_at(x, c);
