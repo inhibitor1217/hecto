@@ -137,13 +137,13 @@ impl<'a> Editor<'a> {
         let status_bar_pos = Position::at(0, self.window_height());
         self.terminal.move_cursor_to(&status_bar_pos)?;
 
-        let mut filename = self.document.filename.clone().unwrap_or(String::from("[New File]"));
+        let mut filename = self.document.filename.clone().unwrap_or_else(|| String::from("[New File]"));
         filename.truncate(20);
         let file_length = self.document.height();
         let modified = if self.document.is_dirty() { "(modified)" } else { "" };
         let file_status = format!("{filename} - {file_length} lines {modified}");
 
-        let pos_status = format!("{}/{}", self.position.y + 1, file_length);
+        let pos_status = format!("{}/{file_length}", self.position.y + 1);
         
         // Align file_status to left, pos_status to right
         let pad = " ".repeat(self.window_width().saturating_sub(file_status.len() + pos_status.len()));
