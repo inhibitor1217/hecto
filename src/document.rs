@@ -6,6 +6,7 @@ use crate::{row::Row, position::Position};
 pub struct Document {
     pub filename: Option<String>,
     rows: Vec<Row>,
+    dirty: bool,
 }
 
 impl ToString for Document {
@@ -20,7 +21,11 @@ impl ToString for Document {
 
 impl Document {
     pub fn new() -> Self {
-        Self { filename: None, rows: vec![] }
+        Self {
+            filename: None,
+            rows: vec![],
+            dirty: true,
+        }
     }
 
     pub fn open(filename: &str) -> Result<Self, io::Error> {
@@ -28,12 +33,14 @@ impl Document {
         Ok(Self {
             filename: Some(filename.to_string()),
             rows: content.lines().map(Row::from).collect(),
+            dirty: false,
         })
     }
 
-    pub fn save(&self) -> Result<(), io::Error> {
+    pub fn save(&mut self) -> Result<(), io::Error> {
         if let Some(filename) = &self.filename {
             fs::write(filename, self.to_string())?;
+            self.dirty = false;
         } else {
             // TODO return error and prompt the user to input a filename
         }
@@ -59,7 +66,18 @@ impl Document {
         self.rows.len()
     }
 
+    pub fn insert_at(&mut self, position: &Position, c: char) {
+        if let Some(row) = self.row_mut(position.y) {
+            row.insert_at(position.x, c);
+            self.dirty = true;
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
     }
 }

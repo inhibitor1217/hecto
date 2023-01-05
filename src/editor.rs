@@ -137,7 +137,8 @@ impl<'a> Editor<'a> {
         let mut filename = self.document.filename.clone().unwrap_or(String::from("[New File]"));
         filename.truncate(20);
         let file_length = self.document.height();
-        let file_status = format!("{filename} - {file_length} lines");
+        let modified = if self.document.is_dirty() { "(modified)" } else { "" };
+        let file_status = format!("{filename} - {file_length} lines {modified}");
 
         let pos_status = format!("{}/{}", self.position.y + 1, file_length);
         
@@ -221,12 +222,9 @@ impl<'a> Editor<'a> {
             (_, KeyCode::Enter) => {}, // TODO
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
-                let Position { x, y } = self.position;
-                if let Some(row) = self.document.row_mut(y) {
-                    row.insert_at(x, c);
-                    position_x += 1;
-                }
-            }
+                self.document.insert_at(&self.position, c);
+                position_x += 1;
+            },
             _ => {},
         }
 
