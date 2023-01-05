@@ -249,7 +249,12 @@ impl<'a> Editor<'a> {
                     self.document.delete_at(&self.position).unwrap();
                 } else if self.document.merge_row(&Position::at(0, position_y + 1)).is_ok() {}
             },
-            (_, KeyCode::Enter) => {}, // TODO
+            (_, KeyCode::Enter) => {
+                if self.document.split_row(&self.position).is_ok() {
+                    position_x = 0;
+                    position_y += 1;
+                }
+            },
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 if self.document.insert_at(&self.position, c).is_ok() {

@@ -104,6 +104,18 @@ impl Document {
         Err(OperationError::Position)
     }
 
+    pub fn split_row(&mut self, position: &Position) -> Result<(), OperationError> {
+        if let Some(row) = self.row_mut(position.y) {
+            let (left, right) = row.split_at(position.x);
+            self.rows[position.y] = left;
+            self.rows.insert(position.y + 1, right);
+            self.dirty = true;
+            return Ok(());
+        }
+
+        Err(OperationError::Position)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }

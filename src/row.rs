@@ -47,6 +47,14 @@ impl Row {
         self.len += row.len();
     }
 
+    pub fn split_at(&mut self, at: usize) -> (Row, Row) {
+        let (left, right) = self.string.split_at(at);
+        (
+            Row::from(left),
+            Row::from(right),
+        )
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
