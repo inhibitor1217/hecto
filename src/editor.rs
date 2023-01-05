@@ -40,6 +40,7 @@ pub struct Editor<'a> {
     offset: Position,
     status_message: StatusMessage,
     quit: bool,
+    quit_dirty: bool,
 }
 
 impl<'a> Editor<'a> {
@@ -52,6 +53,7 @@ impl<'a> Editor<'a> {
             offset: Position::zero(),
             status_message: StatusMessage::new(String::from("help) ctrl-s: save | ctrl-q: quit")),
             quit: false,
+            quit_dirty: false,
         }
     }
 
@@ -71,6 +73,7 @@ impl<'a> Editor<'a> {
             offset: Position::zero(),
             status_message,
             quit: false,
+            quit_dirty: false,
         }
     }
 
@@ -182,7 +185,18 @@ impl<'a> Editor<'a> {
         match key {
             // In most cases we will use ctrl+q for quitting,
             // but apparently VSCode skips sending ctrl+q to the terminal.
-            (_, KeyCode::Char('q')) => self.quit = true,
+            (_, KeyCode::Char('q')) => {
+                if self.document.is_dirty() {
+                    if self.quit_dirty {
+                        self.quit = true;
+                    } else {
+                        self.quit_dirty = true;
+                        self.status_message = StatusMessage::new(String::from("Your changes will be lost if you quit now. Press Ctrl-Q again to quit."));
+                    }
+                } else {
+                    self.quit = true;
+                }
+            },
             (_, KeyCode::Left) => {
                 if position_x > 0 {
                     position_x -= 1;
