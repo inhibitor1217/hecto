@@ -23,6 +23,13 @@ impl ToString for Row {
 }
 
 impl Row {
+    pub fn new() -> Row {
+        Row {
+            string: String::new(),
+            len: 0,
+        }
+    }
+
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = max(start, min(end, self.len()));
         self.string

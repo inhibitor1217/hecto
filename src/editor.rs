@@ -172,7 +172,7 @@ impl<'a> Editor<'a> {
             }
             EditorMode::SavePrompt => {
                 let input = if self.prompt.is_empty() { "(enter filename)" } else { &self.prompt[..] };
-                format!("Save as: {input} (ESC to cancel)")
+                format!("Save as: {input}")
             }
         };
 
@@ -280,12 +280,18 @@ impl<'a> Editor<'a> {
                 if self.document.split_row(&self.position).is_ok() {
                     position_x = 0;
                     position_y += 1;
+                } else {
+                    self.document.append_row();
+                    return self.process_key(key);
                 }
             },
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 if self.document.insert_at(&self.position, c).is_ok() {
                     position_x += 1;
+                } else {
+                    self.document.append_row();
+                    return self.process_key(key);
                 }
             },
             _ => {},
@@ -358,9 +364,14 @@ impl<'a> Editor<'a> {
     fn save_document(&mut self) {
         match self.document.save() {
             Ok(_) => self.status_message = StatusMessage::new(String::from("File saved")),
-            Err(OperationError::EmptyFilename) => self.mode = EditorMode::SavePrompt,
+            Err(OperationError::EmptyFilename) => self.save_prompt(),
             Err(e) => self.status_message = StatusMessage::new(format!("Unable to save file: {e}")),
         }
+    }
+
+    fn save_prompt(&mut self) {
+        self.mode = EditorMode::SavePrompt;
+        self.status_message = StatusMessage::new(String::from("help) Enter to save, Esc to cancel"));
     }
 
     fn die(&mut self, e: &Error) {

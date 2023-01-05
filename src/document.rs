@@ -105,6 +105,11 @@ impl Document {
         Err(OperationError::Position)
     }
 
+    pub fn append_row(&mut self) {
+        self.rows.push(Row::new());
+        self.dirty = true;
+    }
+
     pub fn merge_row(&mut self, position: &Position) -> Result<(), OperationError> {
         if let [prev, cur] = &mut self.rows[position.y.saturating_sub(1)..=position.y] {
             prev.append(cur);
