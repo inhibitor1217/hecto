@@ -1,10 +1,22 @@
-use std::{fs, io};
+use std::{fs, io, fmt::Display};
 
 use crate::{row::Row, position::Position};
 
 #[derive(Debug)]
 pub enum OperationError {
     Position,
+    EmptyFilename,
+    IO(io::Error),
+}
+
+impl Display for OperationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Position => write!(f, "Invalid position"),
+            Self::EmptyFilename => write!(f, "Empty filename"),
+            Self::IO(err) => write!(f, "IO error: {err}"),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -33,8 +45,8 @@ impl Document {
         }
     }
 
-    pub fn open(filename: &str) -> Result<Self, io::Error> {
-        let content = fs::read_to_string(filename)?;
+    pub fn open(filename: &str) -> Result<Self, OperationError> {
+        let content = fs::read_to_string(filename).map_err(OperationError::IO)?;
         Ok(Self {
             filename: Some(filename.to_string()),
             rows: content.lines().map(Row::from).collect(),
@@ -42,12 +54,12 @@ impl Document {
         })
     }
 
-    pub fn save(&mut self) -> Result<(), io::Error> {
+    pub fn save(&mut self) -> Result<(), OperationError> {
         if let Some(filename) = &self.filename {
-            fs::write(filename, self.to_string())?;
+            fs::write(filename, self.to_string()).map_err(OperationError::IO)?;
             self.dirty = false;
         } else {
-            // TODO return error and prompt the user to input a filename
+            return Err(OperationError::EmptyFilename);
         }
 
         Ok(())

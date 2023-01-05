@@ -1,7 +1,7 @@
 use std::{io::{self, Stdout, Write}, time::Instant};
 
 use crate::{
-    document::Document,
+    document::{Document, OperationError},
     position::Position,
     terminal::{Key, KeyCode, KeyModifiers, Terminal, Color},
 };
@@ -10,6 +10,11 @@ type Error = io::Error;
 type Result<T> = std::result::Result<T, Error>;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+enum EditorMode {
+    Insert,
+    SavePrompt,
+}
 
 const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
 const STATUS_BG_COLOR: Color = Color::Rgb { r: 191, g: 191, b: 191 };
@@ -35,10 +40,12 @@ impl StatusMessage {
 pub struct Editor<'a> {
     stdout: Stdout,
     terminal: &'a mut Terminal,
+    mode: EditorMode,
     document: Document,
     position: Position,
     offset: Position,
     status_message: StatusMessage,
+    prompt: String,
     quit: bool,
     quit_dirty: bool,
 }
@@ -48,10 +55,12 @@ impl<'a> Editor<'a> {
         Self {
             stdout: io::stdout(),
             terminal,
+            mode: EditorMode::Insert,
             document: Document::new(),
             position: Position::zero(),
             offset: Position::zero(),
             status_message: StatusMessage::new(String::from("help) ctrl-s: save | ctrl-q: quit")),
+            prompt: String::new(),
             quit: false,
             quit_dirty: false,
         }
@@ -68,10 +77,12 @@ impl<'a> Editor<'a> {
         Self {
             stdout: io::stdout(),
             terminal,
-            position: Position::zero(),
+            mode: EditorMode::Insert,
             document,
+            position: Position::zero(),
             offset: Position::zero(),
             status_message,
+            prompt: String::new(),
             quit: false,
             quit_dirty: false,
         }
@@ -102,9 +113,17 @@ impl<'a> Editor<'a> {
             }
 
             let key = Terminal::read_key()?;
-            self.process_key(key);
-            self.sanitize_position();
-            self.scroll();
+
+            match self.mode {
+                EditorMode::Insert => {
+                    self.process_key(key);
+                    self.sanitize_position();
+                    self.scroll();
+                },
+                EditorMode::SavePrompt => {
+                    self.process_save_prompt(key);
+                },
+            }
         }
         Ok(())
     }
@@ -137,17 +156,25 @@ impl<'a> Editor<'a> {
         let status_bar_pos = Position::at(0, self.window_height());
         self.terminal.move_cursor_to(&status_bar_pos)?;
 
-        let mut filename = self.document.filename.clone().unwrap_or_else(|| String::from("[New File]"));
-        filename.truncate(20);
-        let file_length = self.document.height();
-        let modified = if self.document.is_dirty() { "(modified)" } else { "" };
-        let file_status = format!("{filename} - {file_length} lines {modified}");
+        let status_line = match &self.mode {
+            EditorMode::Insert => {
+                let mut filename = self.document.filename.clone().unwrap_or_else(|| String::from("[New File]"));
+                filename.truncate(20);
+                let file_length = self.document.height();
+                let modified = if self.document.is_dirty() { "(modified)" } else { "" };
+                let file_status = format!("{filename} - {file_length} lines {modified}");
 
-        let pos_status = format!("{}/{file_length}", self.position.y + 1);
-        
-        // Align file_status to left, pos_status to right
-        let pad = " ".repeat(self.window_width().saturating_sub(file_status.len() + pos_status.len()));
-        let status_line = format!("{file_status}{pad}{pos_status}");
+                let pos_status = format!("{}/{file_length}", self.position.y + 1);
+                
+                // Align file_status to left, pos_status to right
+                let pad = " ".repeat(self.window_width().saturating_sub(file_status.len() + pos_status.len()));
+                format!("{file_status}{pad}{pos_status}")
+            }
+            EditorMode::SavePrompt => {
+                let input = if self.prompt.is_empty() { "(enter filename)" } else { &self.prompt[..] };
+                format!("Save as: {input} (ESC to cancel)")
+            }
+        };
 
         self.terminal.clear_line()?;
         self.terminal.draw_line(status_line.as_str(), Some(STATUS_FG_COLOR), Some(STATUS_BG_COLOR))?;
@@ -306,6 +333,20 @@ impl<'a> Editor<'a> {
         self.offset = Position::at(offset_x, offset_y);
     }
 
+    fn process_save_prompt(&mut self, key: Key) {
+        match key {
+            (_, KeyCode::Esc) => self.mode = EditorMode::Insert,
+            (_, KeyCode::Backspace) => { self.prompt.pop(); },
+            (_, KeyCode::Enter) => {
+                self.document.filename = Some(self.prompt.clone());
+                self.save_document();
+                self.mode = EditorMode::Insert;
+            },
+            (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.prompt.push(c),
+            _ => {},
+        }
+    }
+
     fn window_width(&self) -> usize {
         self.terminal.size().width as usize
     }
@@ -315,10 +356,10 @@ impl<'a> Editor<'a> {
     }
 
     fn save_document(&mut self) {
-        if let Err(e) = self.document.save() {
-            self.status_message = StatusMessage::new(format!("Unable to save file: {e}"));
-        } else {
-            self.status_message = StatusMessage::new(String::from("File saved"));
+        match self.document.save() {
+            Ok(_) => self.status_message = StatusMessage::new(String::from("File saved")),
+            Err(OperationError::EmptyFilename) => self.mode = EditorMode::SavePrompt,
+            Err(e) => self.status_message = StatusMessage::new(format!("Unable to save file: {e}")),
         }
     }
 
