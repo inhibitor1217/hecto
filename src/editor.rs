@@ -231,13 +231,30 @@ impl<'a> Editor<'a> {
             (_, KeyCode::PageDown) => {
                 position_y += self.window_height();
             },
-            (_, KeyCode::Backspace) => {}, // TODO
-            (_, KeyCode::Delete) => {}, // TODO
+            (_, KeyCode::Backspace) => {
+                if position_x > 0 {
+                    if self.document.delete_at(&Position::at(position_x - 1, position_y)).is_ok() {
+                        position_x -= 1;
+                    }
+                } else {
+                    let prev_width = self.document.width_at(&Position::at(0, position_y.saturating_sub(1)));
+                    if self.document.merge_row(&self.position).is_ok() {
+                        position_x = prev_width;
+                        position_y -= 1;
+                    }
+                }
+            },
+            (_, KeyCode::Delete) => {
+                if position_x < self.document.width_at(&self.position) {
+                    self.document.delete_at(&self.position).unwrap();
+                } else if self.document.merge_row(&Position::at(0, position_y + 1)).is_ok() {}
+            },
             (_, KeyCode::Enter) => {}, // TODO
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
-                self.document.insert_at(&self.position, c);
-                position_x += 1;
+                if self.document.insert_at(&self.position, c).is_ok() {
+                    position_x += 1;
+                }
             },
             _ => {},
         }

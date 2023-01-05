@@ -37,6 +37,16 @@ impl Row {
         self.len += 1;
     }
 
+    pub fn delete_at(&mut self, at: usize) {
+        self.string.remove(at);
+        self.len -= 1;
+    }
+
+    pub fn append(&mut self, row: &Row) {
+        self.string.push_str(&row.string);
+        self.len += row.len();
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }

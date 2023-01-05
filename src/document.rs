@@ -2,6 +2,11 @@ use std::{fs, io};
 
 use crate::{row::Row, position::Position};
 
+#[derive(Debug)]
+pub enum OperationError {
+    Position,
+}
+
 #[derive(Default)]
 pub struct Document {
     pub filename: Option<String>,
@@ -66,11 +71,37 @@ impl Document {
         self.rows.len()
     }
 
-    pub fn insert_at(&mut self, position: &Position, c: char) {
+    pub fn insert_at(&mut self, position: &Position, c: char) -> Result<(), OperationError> {
         if let Some(row) = self.row_mut(position.y) {
             row.insert_at(position.x, c);
             self.dirty = true;
+            return Ok(());
         }
+
+        Err(OperationError::Position)
+    }
+
+    pub fn delete_at(&mut self, position: &Position) -> Result<(), OperationError> {
+        if let Some(row) = self.row_mut(position.y) {
+            if row.len() > 0 {
+                row.delete_at(position.x);
+                self.dirty = true;
+                return Ok(());
+            }
+        }
+
+        Err(OperationError::Position)
+    }
+
+    pub fn merge_row(&mut self, position: &Position) -> Result<(), OperationError> {
+        if let [prev, cur] = &mut self.rows[position.y.saturating_sub(1)..=position.y] {
+            prev.append(cur);
+            self.rows.remove(position.y);
+            self.dirty = true;
+            return Ok(());
+        }
+
+        Err(OperationError::Position)
     }
 
     pub fn is_empty(&self) -> bool {
