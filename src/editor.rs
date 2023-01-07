@@ -45,6 +45,10 @@ impl StatusMessage {
         Self::new(String::from("help) Enter to save, Esc to cancel"))
     }
 
+    fn help_search() -> Self {
+        Self::new(String::from("help) Enter to search, Esc to cancel"))
+    }
+
     fn warn_dirty() -> Self {
         Self::new(String::from("Your changes will be lost if you quit now. Press Ctrl-Q again to quit."))
     }
@@ -322,7 +326,7 @@ impl<'a> Editor<'a> {
                     return self.process_key(key);
                 }
             },
-            (KeyModifiers::CONTROL, KeyCode::Char('f')) => self.mode = EditorMode::Prompt(EditorPrompt::Search),
+            (KeyModifiers::CONTROL, KeyCode::Char('f')) => self.search_prompt(),
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 if self.document.insert_at(&self.position, c).is_ok() {
@@ -426,6 +430,11 @@ impl<'a> Editor<'a> {
     fn save_prompt(&mut self) {
         self.mode = EditorMode::Prompt(EditorPrompt::Save);
         self.status_message = StatusMessage::help_save();
+    }
+
+    fn search_prompt(&mut self) {
+        self.mode = EditorMode::Prompt(EditorPrompt::Search);
+        self.status_message = StatusMessage::help_search();
     }
 
     fn search_incremental(&mut self) {
