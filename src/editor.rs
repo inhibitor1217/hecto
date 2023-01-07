@@ -201,10 +201,14 @@ impl<'a> Editor<'a> {
             }
             EditorMode::Prompt(EditorPrompt::Save) => {
                 let input = if self.prompt.is_empty() { "(enter filename)" } else { &self.prompt[..] };
-                format!("Save as: {input}")
+                let str = format!("Save as: {input}");
+                let pad = " ".repeat(self.window_width().saturating_sub(str.len()));
+                format!("{str}{pad}")
             }
             EditorMode::Prompt(EditorPrompt::Search) => {
-                format!("Search: {}", self.prompt)
+                let str = format!("Search: {}", self.prompt);
+                let pad = " ".repeat(self.window_width().saturating_sub(str.len()));
+                format!("{str}{pad}")
             }
         };
 
