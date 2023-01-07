@@ -40,6 +40,19 @@ impl Row {
             .collect()
     }
 
+    pub fn to_position(&self, raw_pos: usize) -> usize {
+        let mut pos = 0;
+        let mut width = 0;
+        for ch in self.string.graphemes(true) {
+            width += ch.len();
+            if width > raw_pos {
+                break;
+            }
+            pos += 1;
+        }
+        pos
+    }
+
     pub fn to_raw_position(&self, pos: usize) -> usize {
         self.string
             .graphemes(true)
@@ -92,6 +105,12 @@ impl Row {
             Row::from(left),
             Row::from(right),
         )
+    }
+
+    pub fn search(&self, query: &str) -> Option<usize> {
+        self.string
+            .find(query)
+            .map(|pos| self.to_position(pos))
     }
 
     pub fn len(&self) -> usize {

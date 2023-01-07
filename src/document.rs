@@ -143,6 +143,15 @@ impl Document {
         Err(OperationError::Position)
     }
 
+    pub fn search(&self, query: &str) -> Option<Position> {
+        self.rows
+            .iter()
+            .enumerate()
+            .find_map(|(y, row)| {
+                row.search(query).map(|x| Position::at(x, y))
+            })
+    }
+
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }

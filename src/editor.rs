@@ -32,6 +32,30 @@ impl StatusMessage {
         }
     }
 
+    fn help() -> Self {
+        Self::new(String::from("help) ctrl-s: save | ctrl-q: quit"))
+    }
+
+    fn help_save() -> Self {
+        Self::new(String::from("help) Enter to save, Esc to cancel"))
+    }
+
+    fn warn_dirty() -> Self {
+        Self::new(String::from("Your changes will be lost if you quit now. Press Ctrl-Q again to quit."))
+    }
+
+    fn open_file_error(filename: &str) -> Self {
+        Self::new(format!("Error opening file: {filename}"))
+    }
+
+    fn save_file_ok() -> Self {
+        Self::new(String::from("File saved"))
+    }
+
+    fn save_file_error(e: &OperationError) -> Self {
+        Self::new(format!("Error saving file: {e}"))
+    }
+
     fn is_recent(&self) -> bool {
         self.time.elapsed().as_secs() < 5
     }
@@ -59,7 +83,7 @@ impl<'a> Editor<'a> {
             document: Document::new(),
             position: Position::zero(),
             offset: Position::zero(),
-            status_message: StatusMessage::new(String::from("help) ctrl-s: save | ctrl-q: quit")),
+            status_message: StatusMessage::help(),
             prompt: String::new(),
             quit: false,
             quit_dirty: false,
@@ -67,10 +91,10 @@ impl<'a> Editor<'a> {
     }
 
     pub fn from_file(terminal: &'a mut Terminal, filename: &'a str) -> Self {
-        let mut status_message = StatusMessage::new(String::from("help) ctrl-s: save | ctrl-q: quit"));
+        let mut status_message = StatusMessage::help();
         let document = Document::open(filename)
             .unwrap_or_else(|_| {
-                status_message = StatusMessage::new(format!("Error opening file: {filename}"));
+                status_message = StatusMessage::open_file_error(filename);
                 Document::new()
             });
 
@@ -218,7 +242,7 @@ impl<'a> Editor<'a> {
                         self.quit = true;
                     } else {
                         self.quit_dirty = true;
-                        self.status_message = StatusMessage::new(String::from("Your changes will be lost if you quit now. Press Ctrl-Q again to quit."));
+                        self.status_message = StatusMessage::warn_dirty();
                     }
                 } else {
                     self.quit = true;
@@ -363,15 +387,15 @@ impl<'a> Editor<'a> {
 
     fn save_document(&mut self) {
         match self.document.save() {
-            Ok(_) => self.status_message = StatusMessage::new(String::from("File saved")),
+            Ok(_) => self.status_message = StatusMessage::save_file_ok(),
             Err(OperationError::EmptyFilename) => self.save_prompt(),
-            Err(e) => self.status_message = StatusMessage::new(format!("Unable to save file: {e}")),
+            Err(e) => self.status_message = StatusMessage::save_file_error(&e),
         }
     }
 
     fn save_prompt(&mut self) {
         self.mode = EditorMode::SavePrompt;
-        self.status_message = StatusMessage::new(String::from("help) Enter to save, Esc to cancel"));
+        self.status_message = StatusMessage::help_save();
     }
 
     fn die(&mut self, e: &Error) {
