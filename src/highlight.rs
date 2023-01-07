@@ -1,4 +1,4 @@
-use crate::{color::Color, row::Row};
+use crate::{color::Color};
 
 pub struct Highlight {
     pub start: usize,
@@ -25,13 +25,4 @@ impl Highlight {
 
 pub trait Highlighter {
     fn highlight(&self, line: &str) -> Vec<Highlight>;
-}
-
-pub fn highlight_row(row: &Row, highlighters: &[Box<dyn Highlighter>]) -> Vec<Highlight> {
-    let mut highlights = Vec::new();
-    for highlighter in highlighters {
-        let line = row.render(0, row.len());
-        highlights.extend(highlighter.highlight(line.as_str()));
-    }
-    highlights
 }

@@ -9,7 +9,7 @@ use crate::{
     position::Position,
     renderer::{render, RenderOutput},
     search::Hit,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::{Highlight, Highlighter, highlight_row},
+    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::{Highlight, Highlighter},
 };
 
 type Error = io::Error;
@@ -211,7 +211,12 @@ impl<'a> Editor<'a> {
                     highlighters.push(Box::new(SearchHitHighlighter::new(row_idx, self.searched_hits.clone())));
                 }
 
-                let highlights = highlight_row(row, &highlighters);
+                let line = row.render(0, row.len());
+
+                let mut highlights = vec![];
+                for highlighter in highlighters {
+                    highlights.append(&mut highlighter.highlight(line.as_str()));
+                }
 
                 render(self.terminal, row, (offset_x, offset_x + window_width), &highlights)?;
             } else if self.document.is_empty() && row_idx == welcome_message_row {
@@ -318,18 +323,7 @@ impl<'a> Editor<'a> {
         match key {
             // In most cases we will use ctrl+q for quitting,
             // but apparently VSCode skips sending ctrl+q to the terminal.
-            (_, KeyCode::Char('q')) => {
-                if self.document.is_dirty() {
-                    if self.quit_dirty {
-                        self.quit = true;
-                    } else {
-                        self.quit_dirty = true;
-                        self.status_message = StatusMessage::warn_dirty();
-                    }
-                } else {
-                    self.quit = true;
-                }
-            }
+            (_, KeyCode::Char('q')) => self.try_quit(),
             (_, KeyCode::Left) => {
                 if position_x > 0 {
                     position_x -= 1;
@@ -512,6 +506,19 @@ impl<'a> Editor<'a> {
 
     fn window_height(&self) -> usize {
         self.terminal.size().height as usize - 2 // Last two lines is for status bar
+    }
+
+    fn try_quit(&mut self) {
+        if self.document.is_dirty() {
+            if self.quit_dirty {
+                self.quit = true;
+            } else {
+                self.quit_dirty = true;
+                self.status_message = StatusMessage::warn_dirty();
+            }
+        } else {
+            self.quit = true;
+        }
     }
 
     fn save_document(&mut self) {
