@@ -7,9 +7,9 @@ use crate::{
     color::Color,
     document::{Document, OperationError},
     position::Position,
-    renderer::{render, Highlight, RenderOutput},
+    renderer::{render, RenderOutput},
     search::Hit,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal},
+    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::Highlight,
 };
 
 type Error = io::Error;

@@ -2,30 +2,7 @@ use std::io;
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{color::Color, row::Row};
-
-pub struct Highlight {
-    start: usize,
-    end: usize,
-    color: Option<Color>,
-    background_color: Option<Color>,
-}
-
-impl Highlight {
-    pub fn new(
-        start: usize,
-        end: usize,
-        color: Option<Color>,
-        background_color: Option<Color>,
-    ) -> Self {
-        Self {
-            start,
-            end,
-            color,
-            background_color,
-        }
-    }
-}
+use crate::{color::Color, row::Row, highlight::Highlight};
 
 pub trait RenderOutput {
     fn style(content: &str, color: Option<Color>, background_color: Option<Color>) -> String;

@@ -2,6 +2,7 @@
 mod color;
 mod document;
 mod editor;
+mod highlight;
 mod position;
 mod renderer;
 mod row;
