@@ -146,13 +146,14 @@ impl<'a> Editor<'a> {
             match self.mode {
                 EditorMode::Insert => {
                     self.process_key(key);
-                    self.sanitize_position();
-                    self.scroll();
                 },
                 EditorMode::Prompt(_) => {
                     self.process_prompt(key);
                 },
             }
+
+            self.sanitize_position();
+            self.scroll();
         }
         Ok(())
     }
@@ -387,7 +388,11 @@ impl<'a> Editor<'a> {
                             self.document.filename = Some(self.prompt.clone());
                             self.save_document();
                         }
-                        _ => {},
+                        EditorPrompt::Search => {
+                            if let Some(position) = self.document.search(&self.prompt) {
+                                self.position = position;
+                            }
+                        },
                     }
                 }
 
