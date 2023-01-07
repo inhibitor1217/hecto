@@ -1,9 +1,15 @@
-use std::{io::{self, Stdout, Write}, time::Instant};
+use std::{
+    io::{self, Stdout, Write},
+    time::Instant,
+};
 
 use crate::{
-    document::{Document, OperationError, Highlight},
+    color::Color,
+    document::{Document, OperationError},
     position::Position,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal, Color}, search::Hit,
+    renderer::{render, Highlight, RenderOutput},
+    search::Hit,
+    terminal::{Key, KeyCode, KeyModifiers, Terminal},
 };
 
 type Error = io::Error;
@@ -21,8 +27,16 @@ enum EditorMode {
     Prompt(EditorPrompt),
 }
 
-const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
-const STATUS_BG_COLOR: Color = Color::Rgb { r: 191, g: 191, b: 191 };
+const STATUS_FG_COLOR: Color = Color::Rgb {
+    r: 63,
+    g: 63,
+    b: 63,
+};
+const STATUS_BG_COLOR: Color = Color::Rgb {
+    r: 191,
+    g: 191,
+    b: 191,
+};
 
 const SEARCH_HIGHLIGHT_BG_COLOR: Color = Color::DarkYellow;
 
@@ -40,7 +54,9 @@ impl StatusMessage {
     }
 
     fn help() -> Self {
-        Self::new(String::from("help) ctrl-s: save | ctrl-f: search | ctrl-q: quit"))
+        Self::new(String::from(
+            "help) ctrl-s: save | ctrl-f: search | ctrl-q: quit",
+        ))
     }
 
     fn help_save() -> Self {
@@ -52,7 +68,9 @@ impl StatusMessage {
     }
 
     fn warn_dirty() -> Self {
-        Self::new(String::from("Your changes will be lost if you quit now. Press Ctrl-Q again to quit."))
+        Self::new(String::from(
+            "Your changes will be lost if you quit now. Press Ctrl-Q again to quit.",
+        ))
     }
 
     fn open_file_error(filename: &str) -> Self {
@@ -113,11 +131,10 @@ impl<'a> Editor<'a> {
 
     pub fn from_file(terminal: &'a mut Terminal, filename: &'a str) -> Self {
         let mut status_message = StatusMessage::help();
-        let document = Document::open(filename)
-            .unwrap_or_else(|_| {
-                status_message = StatusMessage::open_file_error(filename);
-                Document::new()
-            });
+        let document = Document::open(filename).unwrap_or_else(|_| {
+            status_message = StatusMessage::open_file_error(filename);
+            Document::new()
+        });
 
         Self {
             stdout: io::stdout(),
@@ -163,10 +180,10 @@ impl<'a> Editor<'a> {
             match self.mode {
                 EditorMode::Insert => {
                     self.process_key(key);
-                },
+                }
                 EditorMode::Prompt(_) => {
                     self.process_prompt(key);
-                },
+                }
             }
 
             self.sanitize_position();
@@ -178,12 +195,11 @@ impl<'a> Editor<'a> {
     fn draw_window(&mut self) -> Result<()> {
         let window_width = self.window_width();
         let window_height = self.window_height();
-        let Position { x: offset_x, y: offset_y } = self.offset;
+        let Position {
+            x: offset_x,
+            y: offset_y,
+        } = self.offset;
         let welcome_message_row = window_height / 3;
-
-        let highlight = self.searched_hits
-            .last()
-            .map(Highlight::from_search_hit);
 
         for row_idx in 0..window_height {
             let row_idx = row_idx + offset_y;
@@ -191,38 +207,20 @@ impl<'a> Editor<'a> {
             self.terminal.clear_line()?;
 
             if let Some(row) = self.document.row(row_idx) {
-                if let Some(highlight) = &highlight {
-                    let Highlight { x_range: (highlight_x_start, highlight_x_end), y: highlighted_row } = highlight;
-                    if *highlighted_row == row_idx {
-                        self.terminal.draw(
-                            row.render(offset_x, *highlight_x_start).as_str(),
-                            None,
-                            None,
-                        )?;
-                        self.terminal.draw(
-                            row.render(*highlight_x_start, *highlight_x_end).as_str(),
+                let mut highlights: Vec<Highlight> = vec![];
+
+                if let Some(hit) = self.searched_hits.last() {
+                    if hit.highlight.0.y == row_idx {
+                        highlights.push(Highlight::new(
+                            hit.highlight.0.x,
+                            hit.highlight.1.x,
                             None,
                             Some(SEARCH_HIGHLIGHT_BG_COLOR),
-                        )?;
-                        self.terminal.draw_line(
-                            format!("{}\r", row.render(*highlight_x_end, offset_x + window_width)).as_str(),
-                            None,
-                            None,
-                        )?;
-                    } else {
-                        self.terminal.draw_line(
-                            format!("{}\r", row.render(offset_x, offset_x + window_width)).as_str(),
-                            None,
-                            None,
-                        )?;
+                        ));
                     }
-                } else {
-                    self.terminal.draw_line(
-                        format!("{}\r", row.render(offset_x, offset_x + window_width)).as_str(),
-                        None,
-                        None,
-                    )?;
                 }
+
+                render(self.terminal, row, (offset_x, offset_x + window_width), &highlights)?;
             } else if self.document.is_empty() && row_idx == welcome_message_row {
                 self.terminal.draw_line(
                     Editor::welcome_message(window_width).as_str(),
@@ -230,11 +228,8 @@ impl<'a> Editor<'a> {
                     None,
                 )?;
             } else {
-                self.terminal.draw_line(
-                    Editor::empty_line().as_str(),
-                    None,
-                    None,
-                )?;
+                self.terminal
+                    .draw_line(Editor::empty_line().as_str(), None, None)?;
             };
         }
         Ok(())
@@ -246,20 +241,35 @@ impl<'a> Editor<'a> {
 
         let status_line = match &self.mode {
             EditorMode::Insert => {
-                let mut filename = self.document.filename.clone().unwrap_or_else(|| String::from("[New File]"));
+                let mut filename = self
+                    .document
+                    .filename
+                    .clone()
+                    .unwrap_or_else(|| String::from("[New File]"));
                 filename.truncate(20);
                 let file_length = self.document.height();
-                let modified = if self.document.is_dirty() { "(modified)" } else { "" };
+                let modified = if self.document.is_dirty() {
+                    "(modified)"
+                } else {
+                    ""
+                };
                 let file_status = format!("{filename} - {file_length} lines {modified}");
 
                 let pos_status = format!("{}/{file_length}", self.position.y + 1);
-                
+
                 // Align file_status to left, pos_status to right
-                let pad = " ".repeat(self.window_width().saturating_sub(file_status.len() + pos_status.len()));
+                let pad = " ".repeat(
+                    self.window_width()
+                        .saturating_sub(file_status.len() + pos_status.len()),
+                );
                 format!("{file_status}{pad}{pos_status}")
             }
             EditorMode::Prompt(EditorPrompt::Save) => {
-                let input = if self.prompt.is_empty() { "(enter filename)" } else { &self.prompt[..] };
+                let input = if self.prompt.is_empty() {
+                    "(enter filename)"
+                } else {
+                    &self.prompt[..]
+                };
                 let str = format!("Save as: {input}");
                 let pad = " ".repeat(self.window_width().saturating_sub(str.len()));
                 format!("{str}{pad}")
@@ -272,7 +282,11 @@ impl<'a> Editor<'a> {
         };
 
         self.terminal.clear_line()?;
-        self.terminal.draw_line(status_line.as_str(), Some(STATUS_FG_COLOR), Some(STATUS_BG_COLOR))?;
+        self.terminal.draw_line(
+            status_line.as_str(),
+            Some(STATUS_FG_COLOR),
+            Some(STATUS_BG_COLOR),
+        )?;
 
         Ok(())
     }
@@ -283,7 +297,8 @@ impl<'a> Editor<'a> {
 
         self.terminal.clear_line()?;
         if self.status_message.is_recent() {
-            self.terminal.draw_line(self.status_message.text.as_str(), None, None)?;
+            self.terminal
+                .draw_line(self.status_message.text.as_str(), None, None)?;
         }
 
         Ok(())
@@ -302,7 +317,10 @@ impl<'a> Editor<'a> {
     }
 
     fn process_key(&mut self, key: Key) {
-        let Position { x: mut position_x, y: mut position_y } = self.position;
+        let Position {
+            x: mut position_x,
+            y: mut position_y,
+        } = self.position;
 
         match key {
             // In most cases we will use ctrl+q for quitting,
@@ -318,7 +336,7 @@ impl<'a> Editor<'a> {
                 } else {
                     self.quit = true;
                 }
-            },
+            }
             (_, KeyCode::Left) => {
                 if position_x > 0 {
                     position_x -= 1;
@@ -326,51 +344,62 @@ impl<'a> Editor<'a> {
                     position_y -= 1;
                     position_x = self.document.width_at(&Position::at(0, position_y));
                 }
-            },
+            }
             (_, KeyCode::Right) => {
                 if position_x < self.document.width_at(&self.position) {
                     position_x += 1;
-                } else if position_y < self.document.height().saturating_sub(1){
+                } else if position_y < self.document.height().saturating_sub(1) {
                     position_y += 1;
                     position_x = 0;
                 }
-            },
+            }
             (_, KeyCode::Up) => {
                 position_y = position_y.saturating_sub(1);
-            },
+            }
             (_, KeyCode::Down) => {
                 position_y += 1;
-            },
+            }
             (_, KeyCode::Home) => {
                 position_x = 0;
-            },
+            }
             (_, KeyCode::End) => {
                 position_x = self.document.width_at(&self.position);
-            },
+            }
             (_, KeyCode::PageUp) => {
                 position_y = position_y.saturating_sub(self.window_height());
-            },
+            }
             (_, KeyCode::PageDown) => {
                 position_y += self.window_height();
-            },
+            }
             (_, KeyCode::Backspace) => {
                 if position_x > 0 {
-                    if self.document.delete_at(&Position::at(position_x - 1, position_y)).is_ok() {
+                    if self
+                        .document
+                        .delete_at(&Position::at(position_x - 1, position_y))
+                        .is_ok()
+                    {
                         position_x -= 1;
                     }
                 } else {
-                    let prev_width = self.document.width_at(&Position::at(0, position_y.saturating_sub(1)));
+                    let prev_width = self
+                        .document
+                        .width_at(&Position::at(0, position_y.saturating_sub(1)));
                     if self.document.merge_row(&self.position).is_ok() {
                         position_x = prev_width;
                         position_y -= 1;
                     }
                 }
-            },
+            }
             (_, KeyCode::Delete) => {
                 if position_x < self.document.width_at(&self.position) {
                     self.document.delete_at(&self.position).unwrap();
-                } else if self.document.merge_row(&Position::at(0, position_y + 1)).is_ok() {}
-            },
+                } else if self
+                    .document
+                    .merge_row(&Position::at(0, position_y + 1))
+                    .is_ok()
+                {
+                }
+            }
             (_, KeyCode::Enter) => {
                 if self.document.split_row(&self.position).is_ok() {
                     position_x = 0;
@@ -379,7 +408,7 @@ impl<'a> Editor<'a> {
                     self.document.append_row();
                     return self.process_key(key);
                 }
-            },
+            }
             (KeyModifiers::CONTROL, KeyCode::Char('f')) => self.search_prompt(),
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
@@ -389,8 +418,8 @@ impl<'a> Editor<'a> {
                     self.document.append_row();
                     return self.process_key(key);
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         self.position = Position::at(position_x, position_y);
@@ -398,7 +427,10 @@ impl<'a> Editor<'a> {
 
     fn sanitize_position(&mut self) {
         let doc_height = self.document.height();
-        let Position { x: mut position_x, y: mut position_y } = self.position;
+        let Position {
+            x: mut position_x,
+            y: mut position_y,
+        } = self.position;
 
         if position_y >= doc_height {
             position_y = doc_height.saturating_sub(1);
@@ -416,8 +448,14 @@ impl<'a> Editor<'a> {
         let window_width = self.window_width();
         let window_height = self.window_height();
 
-        let Position { x: position_x, y: position_y } = self.position;
-        let Position { x: mut offset_x, y: mut offset_y } = self.offset;
+        let Position {
+            x: position_x,
+            y: position_y,
+        } = self.position;
+        let Position {
+            x: mut offset_x,
+            y: mut offset_y,
+        } = self.offset;
 
         if position_x < offset_x {
             offset_x = position_x;
@@ -438,7 +476,9 @@ impl<'a> Editor<'a> {
     fn process_prompt(&mut self, key: Key) {
         match key {
             (_, KeyCode::Esc) => self.mode = EditorMode::Insert,
-            (_, KeyCode::Backspace) => { self.prompt.pop(); },
+            (_, KeyCode::Backspace) => {
+                self.prompt.pop();
+            }
             (_, KeyCode::Enter) => {
                 if let EditorMode::Prompt(prompt) = &self.mode {
                     match prompt {
@@ -452,14 +492,24 @@ impl<'a> Editor<'a> {
 
                 self.mode = EditorMode::Insert;
                 self.prompt = String::new();
-            },
-            (_, KeyCode::Left | KeyCode::Up) => if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode { self.search_previous() },
-            (_, KeyCode::Right | KeyCode::Down) => if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode { self.search_next() },
+            }
+            (_, KeyCode::Left | KeyCode::Up) => {
+                if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode {
+                    self.search_previous()
+                }
+            }
+            (_, KeyCode::Right | KeyCode::Down) => {
+                if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode {
+                    self.search_next()
+                }
+            }
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 self.prompt.push(c);
-                if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode { self.search_incremental() }
-            },
-            _ => {},
+                if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode {
+                    self.search_incremental()
+                }
+            }
+            _ => {}
         }
     }
 
@@ -500,14 +550,15 @@ impl<'a> Editor<'a> {
     }
 
     fn search_next(&mut self) {
-        let last_position = *self.searched_hits
+        let last_position = *self
+            .searched_hits
             .last()
             .map_or(&Position::zero(), |hit| &hit.position);
 
-        if let Some(hit) = self.document.search(
-            &self.prompt,
-            &last_position.add(&Position::at(1, 0))
-        ) {
+        if let Some(hit) = self
+            .document
+            .search(&self.prompt, &last_position.add(&Position::at(1, 0)))
+        {
             self.position = hit.position;
             self.searched_hits.push(hit);
             self.status_message = StatusMessage::help_search();

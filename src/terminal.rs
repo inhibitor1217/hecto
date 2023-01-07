@@ -4,10 +4,12 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{read, Event, KeyCode as CrossTermKeyCode, KeyModifiers as CrossTermKeyModifiers},
     execute,
-    terminal::{size, Clear, ClearType}, style::{SetBackgroundColor, self, SetForegroundColor},
+    style::{SetBackgroundColor, SetForegroundColor},
+    terminal::{size, Clear, ClearType},
 };
 
 use crate::position::Position;
+use crate::{color::Color, renderer::RenderOutput};
 
 pub struct Size {
     pub width: u16,
@@ -26,8 +28,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type KeyModifiers = CrossTermKeyModifiers;
 pub type KeyCode = CrossTermKeyCode;
 pub type Key = (KeyModifiers, KeyCode);
-
-pub type Color = style::Color;
 
 impl Terminal {
     pub fn new() -> Result<Self> {
@@ -72,8 +72,10 @@ impl Terminal {
     pub fn clear_line(&mut self) -> Result<()> {
         execute!(self.stdout, Clear(ClearType::CurrentLine))
     }
+}
 
-    pub fn draw(&mut self, content: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
+impl RenderOutput for Terminal {
+    fn draw(&mut self, content: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
         if content.is_empty() {
             return Ok(());
         }
@@ -91,7 +93,12 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn draw_line(&mut self, line: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
+    fn draw_line(
+        &mut self,
+        line: &str,
+        color: Option<Color>,
+        bg_color: Option<Color>,
+    ) -> Result<()> {
         let is_last_line = self.cursor_position.y == self.size.height as usize - 1;
         let newline = if is_last_line { "" } else { "\n" };
 

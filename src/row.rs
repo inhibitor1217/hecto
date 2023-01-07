@@ -104,16 +104,11 @@ impl Row {
     pub fn split_at(&mut self, at: usize) -> (Row, Row) {
         let left = &self.string.graphemes(true).take(at).collect::<String>()[..];
         let right = &self.string.graphemes(true).skip(at).collect::<String>()[..];
-        (
-            Row::from(left),
-            Row::from(right),
-        )
+        (Row::from(left), Row::from(right))
     }
 
     pub fn search(&self, query: &str, after: usize) -> Option<usize> {
-        let substr = &self.string.graphemes(true)
-            .skip(after)
-            .collect::<String>()[..];
+        let substr = &self.string.graphemes(true).skip(after).collect::<String>()[..];
 
         substr
             .find(query)

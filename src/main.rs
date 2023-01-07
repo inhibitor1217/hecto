@@ -1,7 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
+mod color;
 mod document;
 mod editor;
 mod position;
+mod renderer;
 mod row;
 mod search;
 mod terminal;

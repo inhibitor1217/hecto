@@ -7,11 +7,7 @@ pub struct Hit {
 }
 
 impl Hit {
-    pub fn new(
-        query: String,
-        from: Position,
-        to: Position,
-    ) -> Self {
+    pub fn new(query: String, from: Position, to: Position) -> Self {
         Self {
             query,
             position: from,

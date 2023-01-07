@@ -1,8 +1,8 @@
-use std::{fs, io, fmt::Display};
+use std::{fmt::Display, fs, io};
 
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{row::Row, position::Position, search::Hit};
+use crate::{position::Position, row::Row, search::Hit};
 
 #[derive(Debug)]
 pub enum OperationError {
@@ -17,21 +17,6 @@ impl Display for OperationError {
             Self::Position => write!(f, "Invalid position"),
             Self::EmptyFilename => write!(f, "Empty filename"),
             Self::IO(err) => write!(f, "IO error: {err}"),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Highlight {
-    pub x_range: (usize, usize),
-    pub y: usize,
-}
-
-impl Highlight {
-    pub fn from_search_hit(hit: &Hit) -> Self {
-        Self {
-            x_range: (hit.highlight.0.x, hit.highlight.1.x),
-            y: hit.position.y,
         }
     }
 }
@@ -91,9 +76,7 @@ impl Document {
     }
 
     pub fn width_at(&self, position: &Position) -> usize {
-        self.row(position.y)
-            .map(Row::len)
-            .unwrap_or_default()
+        self.row(position.y).map(Row::len).unwrap_or_default()
     }
 
     pub fn height(&self) -> usize {
@@ -101,7 +84,8 @@ impl Document {
     }
 
     pub fn translate(&self, position: &Position, offset: &Position) -> Position {
-        let raw_x = self.row(position.y)
+        let raw_x = self
+            .row(position.y)
             .map(|r| r.to_raw_position(position.x))
             .unwrap_or_default();
 
@@ -171,11 +155,9 @@ impl Document {
                 let after_x = if y == 0 { after.x } else { 0 };
                 row.search(query, after_x)
                     .map(|x| Position::at(x, after.y + y))
-                    .map(|pos| Hit::new(
-                        query.to_string(),
-                        pos,
-                        pos.add(&Position::at(query_len, 0))
-                    ))
+                    .map(|pos| {
+                        Hit::new(query.to_string(), pos, pos.add(&Position::at(query_len, 0)))
+                    })
             })
     }
 
