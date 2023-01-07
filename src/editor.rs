@@ -388,18 +388,21 @@ impl<'a> Editor<'a> {
                             self.document.filename = Some(self.prompt.clone());
                             self.save_document();
                         }
-                        EditorPrompt::Search => {
-                            if let Some(position) = self.document.search(&self.prompt) {
-                                self.position = position;
-                            }
-                        },
+                        EditorPrompt::Search => self.search_incremental(),
                     }
                 }
 
                 self.mode = EditorMode::Insert;
                 self.prompt = String::new();
             },
-            (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.prompt.push(c),
+            (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
+                self.prompt.push(c);
+
+                match &self.mode {
+                    EditorMode::Prompt(EditorPrompt::Search) => self.search_incremental(),
+                    _ => {},
+                }
+            },
             _ => {},
         }
     }
@@ -423,6 +426,12 @@ impl<'a> Editor<'a> {
     fn save_prompt(&mut self) {
         self.mode = EditorMode::Prompt(EditorPrompt::Save);
         self.status_message = StatusMessage::help_save();
+    }
+
+    fn search_incremental(&mut self) {
+        if let Some(position) = self.document.search(&self.prompt) {
+            self.position = position;
+        }
     }
 
     fn die(&mut self, e: &Error) {
