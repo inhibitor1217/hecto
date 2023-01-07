@@ -1,7 +1,7 @@
 use std::{io::{self, Stdout, Write}, time::Instant};
 
 use crate::{
-    document::{Document, OperationError, DocumentHighlight},
+    document::{Document, OperationError, Highlight},
     position::Position,
     terminal::{Key, KeyCode, KeyModifiers, Terminal, Color}, search::Hit,
 };
@@ -183,7 +183,7 @@ impl<'a> Editor<'a> {
 
         let highlight = self.searched_hits
             .last()
-            .map(DocumentHighlight::from_search_hit);
+            .map(Highlight::from_search_hit);
 
         for row_idx in 0..window_height {
             let row_idx = row_idx + offset_y;
@@ -192,20 +192,20 @@ impl<'a> Editor<'a> {
 
             if let Some(row) = self.document.row(row_idx) {
                 if let Some(highlight) = &highlight {
-                    let DocumentHighlight { x_range: (hsx, hex), y: hy } = highlight;
-                    if *hy == row_idx {
+                    let Highlight { x_range: (highlight_x_start, highlight_x_end), y: highlighted_row } = highlight;
+                    if *highlighted_row == row_idx {
                         self.terminal.draw(
-                            row.render(offset_x, *hsx).as_str(),
+                            row.render(offset_x, *highlight_x_start).as_str(),
                             None,
                             None,
                         )?;
                         self.terminal.draw(
-                            row.render(*hsx, *hex).as_str(),
+                            row.render(*highlight_x_start, *highlight_x_end).as_str(),
                             None,
                             Some(SEARCH_HIGHLIGHT_BG_COLOR),
                         )?;
                         self.terminal.draw_line(
-                            format!("{}\r", row.render(*hex, offset_x + window_width)).as_str(),
+                            format!("{}\r", row.render(*highlight_x_end, offset_x + window_width)).as_str(),
                             None,
                             None,
                         )?;
@@ -453,25 +453,11 @@ impl<'a> Editor<'a> {
                 self.mode = EditorMode::Insert;
                 self.prompt = String::new();
             },
-            (_, KeyCode::Left | KeyCode::Up) => {
-                match &self.mode {
-                    EditorMode::Prompt(EditorPrompt::Search) => self.search_previous(),
-                    _ => {},
-                }
-            },
-            (_, KeyCode::Right | KeyCode::Down) => {
-                match &self.mode {
-                    EditorMode::Prompt(EditorPrompt::Search) => self.search_next(),
-                    _ => {},
-                }
-            },
+            (_, KeyCode::Left | KeyCode::Up) => if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode { self.search_previous() },
+            (_, KeyCode::Right | KeyCode::Down) => if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode { self.search_next() },
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 self.prompt.push(c);
-
-                match &self.mode {
-                    EditorMode::Prompt(EditorPrompt::Search) => self.search_incremental(),
-                    _ => {},
-                }
+                if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode { self.search_incremental() }
             },
             _ => {},
         }
@@ -516,9 +502,7 @@ impl<'a> Editor<'a> {
     fn search_next(&mut self) {
         let last_position = *self.searched_hits
             .last()
-            .map(|hit| &hit.position)
-            .as_deref()
-            .unwrap_or(&Position::zero());
+            .map_or(&Position::zero(), |hit| &hit.position);
 
         if let Some(hit) = self.document.search(
             &self.prompt,

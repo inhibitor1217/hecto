@@ -22,12 +22,12 @@ impl Display for OperationError {
 }
 
 #[derive(Debug)]
-pub struct DocumentHighlight {
+pub struct Highlight {
     pub x_range: (usize, usize),
     pub y: usize,
 }
 
-impl DocumentHighlight {
+impl Highlight {
     pub fn from_search_hit(hit: &Hit) -> Self {
         Self {
             x_range: (hit.highlight.0.x, hit.highlight.1.x),
