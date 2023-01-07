@@ -73,7 +73,11 @@ impl Terminal {
         execute!(self.stdout, Clear(ClearType::CurrentLine))
     }
 
-    pub fn draw_line(&mut self, line: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
+    pub fn draw(&mut self, content: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
+        if content.is_empty() {
+            return Ok(());
+        }
+
         if let Some(color) = color {
             execute!(self.stdout, SetForegroundColor(color))?;
         }
@@ -81,12 +85,16 @@ impl Terminal {
             execute!(self.stdout, SetBackgroundColor(bg_color))?;
         }
 
-        let is_last_line = self.cursor_position.y == self.size.height as usize - 1;
-        let newline = if is_last_line { "" } else { "\n" };
-
-        write!(self.stdout, "{line}{newline}")?;
+        write!(self.stdout, "{content}")?;
         execute!(self.stdout, SetForegroundColor(Color::Reset))?;
         execute!(self.stdout, SetBackgroundColor(Color::Reset))?;
         Ok(())
+    }
+
+    pub fn draw_line(&mut self, line: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
+        let is_last_line = self.cursor_position.y == self.size.height as usize - 1;
+        let newline = if is_last_line { "" } else { "\n" };
+
+        self.draw(&format!("{line}{newline}"), color, bg_color)
     }
 }

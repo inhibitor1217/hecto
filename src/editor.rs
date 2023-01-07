@@ -1,9 +1,9 @@
 use std::{io::{self, Stdout, Write}, time::Instant};
 
 use crate::{
-    document::{Document, OperationError},
+    document::{Document, OperationError, DocumentHighlight},
     position::Position,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal, Color},
+    terminal::{Key, KeyCode, KeyModifiers, Terminal, Color}, search::Hit,
 };
 
 type Error = io::Error;
@@ -23,6 +23,8 @@ enum EditorMode {
 
 const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
 const STATUS_BG_COLOR: Color = Color::Rgb { r: 191, g: 191, b: 191 };
+
+const SEARCH_HIGHLIGHT_BG_COLOR: Color = Color::DarkYellow;
 
 struct StatusMessage {
     text: String,
@@ -87,7 +89,7 @@ pub struct Editor<'a> {
     offset: Position,
     status_message: StatusMessage,
     prompt: String,
-    searched_positions: Vec<Position>,
+    searched_hits: Vec<Hit>,
     quit: bool,
     quit_dirty: bool,
 }
@@ -103,7 +105,7 @@ impl<'a> Editor<'a> {
             offset: Position::zero(),
             status_message: StatusMessage::help(),
             prompt: String::new(),
-            searched_positions: vec![],
+            searched_hits: vec![],
             quit: false,
             quit_dirty: false,
         }
@@ -126,7 +128,7 @@ impl<'a> Editor<'a> {
             offset: Position::zero(),
             status_message,
             prompt: String::new(),
-            searched_positions: vec![],
+            searched_hits: vec![],
             quit: false,
             quit_dirty: false,
         }
@@ -179,20 +181,61 @@ impl<'a> Editor<'a> {
         let Position { x: offset_x, y: offset_y } = self.offset;
         let welcome_message_row = window_height / 3;
 
+        let highlight = self.searched_hits
+            .last()
+            .map(DocumentHighlight::from_search_hit);
+
         for row_idx in 0..window_height {
             let row_idx = row_idx + offset_y;
 
             self.terminal.clear_line()?;
 
-            let line = if let Some(row) = self.document.row(row_idx) {
-                format!("{}\r", row.render(offset_x, offset_x + window_width))
+            if let Some(row) = self.document.row(row_idx) {
+                if let Some(highlight) = &highlight {
+                    let DocumentHighlight { x_range: (hsx, hex), y: hy } = highlight;
+                    if *hy == row_idx {
+                        self.terminal.draw(
+                            row.render(offset_x, *hsx).as_str(),
+                            None,
+                            None,
+                        )?;
+                        self.terminal.draw(
+                            row.render(*hsx, *hex).as_str(),
+                            None,
+                            Some(SEARCH_HIGHLIGHT_BG_COLOR),
+                        )?;
+                        self.terminal.draw_line(
+                            format!("{}\r", row.render(*hex, offset_x + window_width)).as_str(),
+                            None,
+                            None,
+                        )?;
+                    } else {
+                        self.terminal.draw_line(
+                            format!("{}\r", row.render(offset_x, offset_x + window_width)).as_str(),
+                            None,
+                            None,
+                        )?;
+                    }
+                } else {
+                    self.terminal.draw_line(
+                        format!("{}\r", row.render(offset_x, offset_x + window_width)).as_str(),
+                        None,
+                        None,
+                    )?;
+                }
             } else if self.document.is_empty() && row_idx == welcome_message_row {
-                Editor::welcome_message(window_width)
+                self.terminal.draw_line(
+                    Editor::welcome_message(window_width).as_str(),
+                    None,
+                    None,
+                )?;
             } else {
-                Editor::empty_line()
+                self.terminal.draw_line(
+                    Editor::empty_line().as_str(),
+                    None,
+                    None,
+                )?;
             };
-            
-            self.terminal.draw_line(&line, None, None)?;
         }
         Ok(())
     }
@@ -461,9 +504,9 @@ impl<'a> Editor<'a> {
     }
 
     fn search_incremental(&mut self) {
-        if let Some(position) = self.document.search(&self.prompt, &Position::zero()) {
-            self.position = position;
-            self.searched_positions = vec![position];
+        if let Some(hit) = self.document.search(&self.prompt, &Position::zero()) {
+            self.position = hit.position;
+            self.searched_hits = vec![hit];
             self.status_message = StatusMessage::help_search();
         } else {
             self.status_message = StatusMessage::no_search_results();
@@ -471,17 +514,18 @@ impl<'a> Editor<'a> {
     }
 
     fn search_next(&mut self) {
-        let last_position = *self.searched_positions
+        let last_position = *self.searched_hits
             .last()
+            .map(|hit| &hit.position)
             .as_deref()
             .unwrap_or(&Position::zero());
 
-        if let Some(position) = self.document.search(
+        if let Some(hit) = self.document.search(
             &self.prompt,
-            &Position::at(last_position.x + 1, last_position.y)
+            &last_position.add(&Position::at(1, 0))
         ) {
-            self.position = position;
-            self.searched_positions.push(position);
+            self.position = hit.position;
+            self.searched_hits.push(hit);
             self.status_message = StatusMessage::help_search();
         } else {
             self.status_message = StatusMessage::no_more_search_results();
@@ -489,9 +533,9 @@ impl<'a> Editor<'a> {
     }
 
     fn search_previous(&mut self) {
-        self.searched_positions.pop();
-        if let Some(position) = self.searched_positions.last() {
-            self.position = *position;
+        self.searched_hits.pop();
+        if let Some(hit) = self.searched_hits.last() {
+            self.position = hit.position;
             self.status_message = StatusMessage::help_search();
         } else {
             self.status_message = StatusMessage::no_more_search_results();

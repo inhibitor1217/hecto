@@ -33,6 +33,9 @@ impl Row {
 
     pub fn render(&self, start: usize, end: usize) -> String {
         let end = max(start, min(end, self.len()));
+        if start > end {
+            return String::new();
+        }
         self.string
             .graphemes(true)
             .skip(start)

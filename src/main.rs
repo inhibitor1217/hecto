@@ -3,6 +3,7 @@ mod document;
 mod editor;
 mod position;
 mod row;
+mod search;
 mod terminal;
 
 use std::{env, error::Error};

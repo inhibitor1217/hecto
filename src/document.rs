@@ -1,6 +1,8 @@
 use std::{fs, io, fmt::Display};
 
-use crate::{row::Row, position::Position};
+use unicode_segmentation::UnicodeSegmentation;
+
+use crate::{row::Row, position::Position, search::Hit};
 
 #[derive(Debug)]
 pub enum OperationError {
@@ -15,6 +17,21 @@ impl Display for OperationError {
             Self::Position => write!(f, "Invalid position"),
             Self::EmptyFilename => write!(f, "Empty filename"),
             Self::IO(err) => write!(f, "IO error: {err}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DocumentHighlight {
+    pub x_range: (usize, usize),
+    pub y: usize,
+}
+
+impl DocumentHighlight {
+    pub fn from_search_hit(hit: &Hit) -> Self {
+        Self {
+            x_range: (hit.highlight.0.x, hit.highlight.1.x),
+            y: hit.position.y,
         }
     }
 }
@@ -143,14 +160,22 @@ impl Document {
         Err(OperationError::Position)
     }
 
-    pub fn search(&self, query: &str, after: &Position) -> Option<Position> {
+    pub fn search(&self, query: &str, after: &Position) -> Option<Hit> {
+        let query_len = query.graphemes(true).count();
+
         self.rows
             .iter()
             .skip(after.y)
             .enumerate()
             .find_map(|(y, row)| {
                 let after_x = if y == 0 { after.x } else { 0 };
-                row.search(query, after_x).map(|x| Position::at(x, after.y + y))
+                row.search(query, after_x)
+                    .map(|x| Position::at(x, after.y + y))
+                    .map(|pos| Hit::new(
+                        query.to_string(),
+                        pos,
+                        pos.add(&Position::at(query_len, 0))
+                    ))
             })
     }
 
