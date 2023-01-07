@@ -11,9 +11,14 @@ type Result<T> = std::result::Result<T, Error>;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+enum EditorPrompt {
+    Save,
+    Search,
+}
+
 enum EditorMode {
     Insert,
-    SavePrompt,
+    Prompt(EditorPrompt),
 }
 
 const STATUS_FG_COLOR: Color = Color::Rgb { r: 63, g: 63, b: 63 };
@@ -33,7 +38,7 @@ impl StatusMessage {
     }
 
     fn help() -> Self {
-        Self::new(String::from("help) ctrl-s: save | ctrl-q: quit"))
+        Self::new(String::from("help) ctrl-s: save | ctrl-f: search | ctrl-q: quit"))
     }
 
     fn help_save() -> Self {
@@ -144,8 +149,8 @@ impl<'a> Editor<'a> {
                     self.sanitize_position();
                     self.scroll();
                 },
-                EditorMode::SavePrompt => {
-                    self.process_save_prompt(key);
+                EditorMode::Prompt(_) => {
+                    self.process_prompt(key);
                 },
             }
         }
@@ -194,9 +199,12 @@ impl<'a> Editor<'a> {
                 let pad = " ".repeat(self.window_width().saturating_sub(file_status.len() + pos_status.len()));
                 format!("{file_status}{pad}{pos_status}")
             }
-            EditorMode::SavePrompt => {
+            EditorMode::Prompt(EditorPrompt::Save) => {
                 let input = if self.prompt.is_empty() { "(enter filename)" } else { &self.prompt[..] };
                 format!("Save as: {input}")
+            }
+            EditorMode::Prompt(EditorPrompt::Search) => {
+                format!("Search: {}", self.prompt)
             }
         };
 
@@ -309,6 +317,7 @@ impl<'a> Editor<'a> {
                     return self.process_key(key);
                 }
             },
+            (KeyModifiers::CONTROL, KeyCode::Char('f')) => self.mode = EditorMode::Prompt(EditorPrompt::Search),
             (KeyModifiers::CONTROL, KeyCode::Char('s')) => self.save_document(),
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 if self.document.insert_at(&self.position, c).is_ok() {
@@ -363,14 +372,23 @@ impl<'a> Editor<'a> {
         self.offset = Position::at(offset_x, offset_y);
     }
 
-    fn process_save_prompt(&mut self, key: Key) {
+    fn process_prompt(&mut self, key: Key) {
         match key {
             (_, KeyCode::Esc) => self.mode = EditorMode::Insert,
             (_, KeyCode::Backspace) => { self.prompt.pop(); },
             (_, KeyCode::Enter) => {
-                self.document.filename = Some(self.prompt.clone());
-                self.save_document();
+                if let EditorMode::Prompt(prompt) = &self.mode {
+                    match prompt {
+                        EditorPrompt::Save => {
+                            self.document.filename = Some(self.prompt.clone());
+                            self.save_document();
+                        }
+                        _ => {},
+                    }
+                }
+
                 self.mode = EditorMode::Insert;
+                self.prompt = String::new();
             },
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => self.prompt.push(c),
             _ => {},
@@ -394,7 +412,7 @@ impl<'a> Editor<'a> {
     }
 
     fn save_prompt(&mut self) {
-        self.mode = EditorMode::SavePrompt;
+        self.mode = EditorMode::Prompt(EditorPrompt::Save);
         self.status_message = StatusMessage::help_save();
     }
 
