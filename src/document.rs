@@ -143,12 +143,14 @@ impl Document {
         Err(OperationError::Position)
     }
 
-    pub fn search(&self, query: &str) -> Option<Position> {
+    pub fn search(&self, query: &str, after: &Position) -> Option<Position> {
         self.rows
             .iter()
+            .skip(after.y)
             .enumerate()
             .find_map(|(y, row)| {
-                row.search(query).map(|x| Position::at(x, y))
+                let after_x = if y == 0 { after.x } else { 0 };
+                row.search(query, after_x).map(|x| Position::at(x, after.y + y))
             })
     }
 

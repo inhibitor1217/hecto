@@ -107,10 +107,15 @@ impl Row {
         )
     }
 
-    pub fn search(&self, query: &str) -> Option<usize> {
-        self.string
+    pub fn search(&self, query: &str, after: usize) -> Option<usize> {
+        let substr = &self.string.graphemes(true)
+            .skip(after)
+            .collect::<String>()[..];
+
+        substr
             .find(query)
-            .map(|pos| self.to_position(pos))
+            .map(|raw_pos| self.to_position(raw_pos))
+            .map(|pos| pos + after)
     }
 
     pub fn len(&self) -> usize {

@@ -65,6 +65,14 @@ impl StatusMessage {
         Self::new(format!("Error saving file: {e}"))
     }
 
+    fn no_search_results() -> Self {
+        Self::new(String::from("No search results"))
+    }
+
+    fn no_more_search_results() -> Self {
+        Self::new(String::from("No more search results"))
+    }
+
     fn is_recent(&self) -> bool {
         self.time.elapsed().as_secs() < 5
     }
@@ -79,6 +87,7 @@ pub struct Editor<'a> {
     offset: Position,
     status_message: StatusMessage,
     prompt: String,
+    searched_positions: Vec<Position>,
     quit: bool,
     quit_dirty: bool,
 }
@@ -94,6 +103,7 @@ impl<'a> Editor<'a> {
             offset: Position::zero(),
             status_message: StatusMessage::help(),
             prompt: String::new(),
+            searched_positions: vec![],
             quit: false,
             quit_dirty: false,
         }
@@ -116,6 +126,7 @@ impl<'a> Editor<'a> {
             offset: Position::zero(),
             status_message,
             prompt: String::new(),
+            searched_positions: vec![],
             quit: false,
             quit_dirty: false,
         }
@@ -399,6 +410,18 @@ impl<'a> Editor<'a> {
                 self.mode = EditorMode::Insert;
                 self.prompt = String::new();
             },
+            (_, KeyCode::Left | KeyCode::Up) => {
+                match &self.mode {
+                    EditorMode::Prompt(EditorPrompt::Search) => self.search_previous(),
+                    _ => {},
+                }
+            },
+            (_, KeyCode::Right | KeyCode::Down) => {
+                match &self.mode {
+                    EditorMode::Prompt(EditorPrompt::Search) => self.search_next(),
+                    _ => {},
+                }
+            },
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 self.prompt.push(c);
 
@@ -438,8 +461,40 @@ impl<'a> Editor<'a> {
     }
 
     fn search_incremental(&mut self) {
-        if let Some(position) = self.document.search(&self.prompt) {
+        if let Some(position) = self.document.search(&self.prompt, &Position::zero()) {
             self.position = position;
+            self.searched_positions = vec![position];
+            self.status_message = StatusMessage::help_search();
+        } else {
+            self.status_message = StatusMessage::no_search_results();
+        }
+    }
+
+    fn search_next(&mut self) {
+        let last_position = *self.searched_positions
+            .last()
+            .as_deref()
+            .unwrap_or(&Position::zero());
+
+        if let Some(position) = self.document.search(
+            &self.prompt,
+            &Position::at(last_position.x + 1, last_position.y)
+        ) {
+            self.position = position;
+            self.searched_positions.push(position);
+            self.status_message = StatusMessage::help_search();
+        } else {
+            self.status_message = StatusMessage::no_more_search_results();
+        }
+    }
+
+    fn search_previous(&mut self) {
+        self.searched_positions.pop();
+        if let Some(position) = self.searched_positions.last() {
+            self.position = *position;
+            self.status_message = StatusMessage::help_search();
+        } else {
+            self.status_message = StatusMessage::no_more_search_results();
         }
     }
 
