@@ -4,7 +4,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{read, Event, KeyCode as CrossTermKeyCode, KeyModifiers as CrossTermKeyModifiers},
     execute,
-    style::{SetBackgroundColor, SetForegroundColor},
+    style::{SetBackgroundColor, SetForegroundColor, Stylize},
     terminal::{size, Clear, ClearType},
 };
 
@@ -76,10 +76,6 @@ impl Terminal {
 
 impl RenderOutput for Terminal {
     fn draw(&mut self, content: &str, color: Option<Color>, bg_color: Option<Color>) -> Result<()> {
-        if content.is_empty() {
-            return Ok(());
-        }
-
         if let Some(color) = color {
             execute!(self.stdout, SetForegroundColor(color))?;
         }
@@ -103,5 +99,20 @@ impl RenderOutput for Terminal {
         let newline = if is_last_line { "" } else { "\n" };
 
         self.draw(&format!("{line}{newline}"), color, bg_color)
+    }
+
+    fn style(
+        content: &str,
+        color: Option<Color>,
+        background_color: Option<Color>,
+    ) -> String {
+        let mut styled = content.to_string();
+        if let Some(color) = color {
+            styled = styled.with(color).to_string();
+        }
+        if let Some(background_color) = background_color {
+            styled = styled.on(background_color).to_string();
+        }
+        styled
     }
 }

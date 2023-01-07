@@ -495,18 +495,18 @@ impl<'a> Editor<'a> {
             }
             (_, KeyCode::Left | KeyCode::Up) => {
                 if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode {
-                    self.search_previous()
+                    self.search_previous();
                 }
             }
             (_, KeyCode::Right | KeyCode::Down) => {
                 if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode {
-                    self.search_next()
+                    self.search_next();
                 }
             }
             (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char(c)) => {
                 self.prompt.push(c);
                 if let EditorMode::Prompt(EditorPrompt::Search) = &self.mode {
-                    self.search_incremental()
+                    self.search_incremental();
                 }
             }
             _ => {}
