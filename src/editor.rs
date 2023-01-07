@@ -102,7 +102,7 @@ impl<'a> Editor<'a> {
             self.draw_status_bar()?;
             self.draw_message_bar()?;
             self.terminal
-                .move_cursor_to(&self.position.diff(&self.offset))?;
+                .move_cursor_to(&self.document.translate(&self.position, &self.offset))?;
             self.terminal.show_cursor()?;
 
             if self.quit {

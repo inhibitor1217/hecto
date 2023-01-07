@@ -83,6 +83,16 @@ impl Document {
         self.rows.len()
     }
 
+    pub fn translate(&self, position: &Position, offset: &Position) -> Position {
+        let raw_x = self.row(position.y)
+            .map(|r| r.to_raw_position(position.x))
+            .unwrap_or_default();
+
+        let raw_y = position.y;
+
+        Position::at(raw_x, raw_y).diff(offset)
+    }
+
     pub fn insert_at(&mut self, position: &Position, c: char) -> Result<(), OperationError> {
         if let Some(row) = self.row_mut(position.y) {
             row.insert_at(position.x, c);

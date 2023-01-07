@@ -1,6 +1,7 @@
 use std::cmp::{max, min};
 
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 pub struct Row {
     string: String,
@@ -39,13 +40,43 @@ impl Row {
             .collect()
     }
 
+    pub fn to_raw_position(&self, pos: usize) -> usize {
+        self.string
+            .graphemes(true)
+            .take(pos)
+            .map(UnicodeWidthStr::width)
+            .sum()
+    }
+
     pub fn insert_at(&mut self, at: usize, c: char) {
-        self.string.insert(at, c);
+        if at >= self.len() {
+            self.string.push(c);
+        } else {
+            let mut s = String::new();
+            for (i, ch) in self.string.graphemes(true).enumerate() {
+                if i == at {
+                    s.push(c);
+                }
+                s.push_str(ch);
+            }
+            self.string = s;
+        }
+
         self.len += 1;
     }
 
     pub fn delete_at(&mut self, at: usize) {
-        self.string.remove(at);
+        if at >= self.len() {
+            return;
+        }
+
+        let mut s = String::new();
+        for (i, ch) in self.string.graphemes(true).enumerate() {
+            if i != at {
+                s.push_str(ch);
+            }
+        }
+        self.string = s;
         self.len -= 1;
     }
 
@@ -55,7 +86,8 @@ impl Row {
     }
 
     pub fn split_at(&mut self, at: usize) -> (Row, Row) {
-        let (left, right) = self.string.split_at(at);
+        let left = &self.string.graphemes(true).take(at).collect::<String>()[..];
+        let right = &self.string.graphemes(true).skip(at).collect::<String>()[..];
         (
             Row::from(left),
             Row::from(right),
