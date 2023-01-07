@@ -9,7 +9,7 @@ use crate::{
     position::Position,
     renderer::{render, RenderOutput},
     search::Hit,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::{Highlight, Highlighter},
+    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::{Highlight, Highlighter, CommonSyntaxHighlighter},
 };
 
 type Error = io::Error;
@@ -210,6 +210,8 @@ impl<'a> Editor<'a> {
                 if let EditorMode::Prompt(EditorPrompt::Search) = self.mode {
                     highlighters.push(Box::new(SearchHitHighlighter::new(row_idx, self.searched_hits.clone())));
                 }
+
+                highlighters.push(Box::new(CommonSyntaxHighlighter::new()));
 
                 let line = row.render(0, row.len());
 
