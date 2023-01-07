@@ -156,7 +156,7 @@ impl Document {
                 row.search(query, after_x)
                     .map(|x| Position::at(x, after.y + y))
                     .map(|pos| {
-                        Hit::new(query.to_string(), pos, pos.add(&Position::at(query_len, 0)))
+                        Hit::new(pos, pos.add(&Position::at(query_len, 0)))
                     })
             })
     }

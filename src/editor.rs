@@ -9,7 +9,7 @@ use crate::{
     position::Position,
     renderer::{render, RenderOutput},
     search::Hit,
-    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::Highlight,
+    terminal::{Key, KeyCode, KeyModifiers, Terminal}, highlight::{Highlight, Highlighter, highlight_row},
 };
 
 type Error = io::Error;
@@ -37,8 +37,6 @@ const STATUS_BG_COLOR: Color = Color::Rgb {
     g: 191,
     b: 191,
 };
-
-const SEARCH_HIGHLIGHT_BG_COLOR: Color = Color::DarkYellow;
 
 struct StatusMessage {
     text: String,
@@ -207,18 +205,13 @@ impl<'a> Editor<'a> {
             self.terminal.clear_line()?;
 
             if let Some(row) = self.document.row(row_idx) {
-                let mut highlights: Vec<Highlight> = vec![];
-
-                if let Some(hit) = self.searched_hits.last() {
-                    if hit.highlight.0.y == row_idx {
-                        highlights.push(Highlight::new(
-                            hit.highlight.0.x,
-                            hit.highlight.1.x,
-                            None,
-                            Some(SEARCH_HIGHLIGHT_BG_COLOR),
-                        ));
-                    }
+                let mut highlighters: Vec<Box<dyn Highlighter>> = vec![];
+                
+                if let EditorMode::Prompt(EditorPrompt::Search) = self.mode {
+                    highlighters.push(Box::new(SearchHitHighlighter::new(row_idx, self.searched_hits.clone())));
                 }
+
+                let highlights = highlight_row(row, &highlighters);
 
                 render(self.terminal, row, (offset_x, offset_x + window_width), &highlights)?;
             } else if self.document.is_empty() && row_idx == welcome_message_row {
@@ -580,5 +573,37 @@ impl<'a> Editor<'a> {
     fn die(&mut self, e: &Error) {
         self.terminal.clear().unwrap(); // We cannot handle error here, already dying
         panic!("{}", e);
+    }
+}
+
+struct SearchHitHighlighter {
+    row_index: usize,
+    hits: Vec<Hit>,
+}
+
+impl SearchHitHighlighter {
+    const SEARCH_HIGHLIGHT_BG_COLOR: Color = Color::DarkYellow;
+    
+    fn new(row_index: usize, hits: Vec<Hit>) -> Self {
+        Self { row_index, hits }
+    }
+}
+
+impl Highlighter for SearchHitHighlighter {
+    fn highlight(&self, _line: &str) -> Vec<Highlight> {
+        let mut highlights = Vec::new();
+
+        if let Some(hit) = self.hits.last() {
+            if self.row_index == hit.highlight.0.y {
+                highlights.push(Highlight::new(
+                    hit.highlight.0.x,
+                    hit.highlight.1.x,
+                    None,
+                    Some(Self::SEARCH_HIGHLIGHT_BG_COLOR),
+                ));
+            }
+        }
+
+        highlights
     }
 }
